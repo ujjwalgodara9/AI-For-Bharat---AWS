@@ -8,6 +8,7 @@ import QuickActions from "./components/QuickActions";
 import TypingIndicator from "./components/TypingIndicator";
 import WelcomeScreen from "./components/WelcomeScreen";
 import type { ChatMessage, ChatResponse } from "./lib/api";
+import { stopSpeaking } from "./lib/tts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -15,6 +16,7 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [language, setLanguage] = useState("hi");
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [sessionId] = useState(
     () => `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   );
@@ -28,8 +30,17 @@ export default function Home() {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
 
+  useEffect(() => {
+    // If user toggles language mid-speech, stop and reset.
+    stopSpeaking();
+    setSpeakingMessageId(null);
+  }, [language]);
+
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
+
+    stopSpeaking();
+    setSpeakingMessageId(null);
 
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}_user`,
@@ -101,7 +112,13 @@ export default function Home() {
         ) : (
           <div className="py-4">
             {messages.map((msg) => (
-              <ChatBubble key={msg.id} message={msg} />
+              <ChatBubble
+                key={msg.id}
+                message={msg}
+                language={language}
+                speakingMessageId={speakingMessageId}
+                onSpeakingChange={setSpeakingMessageId}
+              />
             ))}
             {isLoading && <TypingIndicator />}
             <div ref={chatEndRef} />

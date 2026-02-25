@@ -2,14 +2,43 @@
 
 import { useState } from "react";
 import type { ChatMessage, AgentTraceStep } from "../lib/api";
+import { isTTSSupported, speakText, stopSpeaking } from "../lib/tts";
 
 interface ChatBubbleProps {
   message: ChatMessage;
+  language: string;
+  speakingMessageId: string | null;
+  onSpeakingChange: (messageId: string | null) => void;
 }
 
-export default function ChatBubble({ message }: ChatBubbleProps) {
+export default function ChatBubble({
+  message,
+  language,
+  speakingMessageId,
+  onSpeakingChange,
+}: ChatBubbleProps) {
   const [showTrace, setShowTrace] = useState(false);
   const isUser = message.role === "user";
+  const isSpeakingThis = !isUser && speakingMessageId === message.id;
+  const canSpeak = !isUser && isTTSSupported();
+
+  const handleSpeakClick = () => {
+    if (!canSpeak) return;
+
+    if (isSpeakingThis) {
+      stopSpeaking();
+      onSpeakingChange(null);
+      return;
+    }
+
+    onSpeakingChange(message.id);
+    speakText({
+      text: message.content,
+      lang: language === "hi" ? "hi-IN" : "en-IN",
+      onEnd: () => onSpeakingChange(null),
+      onError: () => onSpeakingChange(null),
+    });
+  };
 
   return (
     <div
@@ -18,9 +47,48 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
       <div className={`max-w-[85%] ${isUser ? "order-1" : "order-1"}`}>
         {/* Avatar for bot */}
         {!isUser && (
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm">🌾</span>
-            <span className="text-xs font-medium text-[#2d6a4f]">MandiMitra</span>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">🌾</span>
+              <span className="text-xs font-medium text-[#2d6a4f]">MandiMitra</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSpeakClick}
+              disabled={!canSpeak}
+              aria-label={
+                isSpeakingThis
+                  ? language === "hi"
+                    ? "रोकें (Stop speaking)"
+                    : "Stop speaking"
+                  : language === "hi"
+                    ? "सुनाएँ (Speak aloud)"
+                    : "Speak aloud"
+              }
+              className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                canSpeak
+                  ? isSpeakingThis
+                    ? "bg-[#2d6a4f] text-white border-[#2d6a4f]"
+                    : "bg-white text-[#2d6a4f] border-[#2d6a4f]/30 hover:bg-[#2d6a4f]/5"
+                  : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+              }`}
+              title={
+                canSpeak
+                  ? isSpeakingThis
+                    ? language === "hi"
+                      ? "रोकें"
+                      : "Stop"
+                    : language === "hi"
+                      ? "सुनाएँ"
+                      : "Speak"
+                  : language === "hi"
+                    ? "यह ब्राउज़र Text-to-Speech सपोर्ट नहीं करता"
+                    : "Text-to-Speech not supported in this browser"
+              }
+            >
+              {isSpeakingThis ? "⏹" : "🔊"}
+            </button>
           </div>
         )}
 
