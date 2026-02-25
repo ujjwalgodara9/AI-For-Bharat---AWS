@@ -7,7 +7,8 @@
       "Bash(npm --version)",
       "Bash(pip --version)",
       "Bash(aws --version)",
-      "Bash(npx create-next-app@14 frontend --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\")"
+      "Bash(npx create-next-app@14 frontend --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\")",
+      "Bash(npx next build)"
     ]
   }
 }

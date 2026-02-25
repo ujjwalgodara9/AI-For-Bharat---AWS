@@ -98,12 +98,12 @@ function TraceStep({ step, index }: { step: AgentTraceStep; index: number }) {
         {step.output && (
           <p className="text-gray-500 mt-0.5 line-clamp-2">{step.output}</p>
         )}
-        {step.input && typeof step.input === "object" && (
+        {step.input != null && typeof step.input === "object" ? (
           <p className="text-gray-400 mt-0.5">
-            {JSON.stringify(step.input).slice(0, 100)}
-            {JSON.stringify(step.input).length > 100 ? "..." : ""}
+            {String(JSON.stringify(step.input)).slice(0, 100)}
+            {String(JSON.stringify(step.input)).length > 100 ? "..." : ""}
           </p>
-        )}
+        ) : null}
       </div>
     </div>
   );
