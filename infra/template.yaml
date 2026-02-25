@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: MandiMitra — AI Mandi Price Intelligence for Indian Farmers
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        PRICE_TABLE: !Ref PriceTable
+        S3_BUCKET: !Ref DataBucket
+        AWS_REGION_NAME: !Ref AWS::Region
+
+Parameters:
+  DataGovApiKey:
+    Type: String
+    Description: API key from data.gov.in
+    NoEcho: true
+  BedrockAgentId:
+    Type: String
+    Description: Bedrock Agent ID (orchestrator)
+    Default: ''
+  BedrockAgentAliasId:
+    Type: String
+    Description: Bedrock Agent Alias ID
+    Default: ''
+  LangfusePublicKey:
+    Type: String
+    Description: LangFuse public key
+    Default: ''
+    NoEcho: true
+  LangfuseSecretKey:
+    Type: String
+    Description: LangFuse secret key
+    Default: ''
+    NoEcho: true
+
+Resources:
+  # ─── DynamoDB Table ────────────────────────────────
+  PriceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MandiMitraPrices
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: mandi_name
+          AttributeType: S
+        - AttributeName: date_commodity
+          AttributeType: S
+        - AttributeName: arrival_date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: MANDI-INDEX
+          KeySchema:
+            - AttributeName: mandi_name
+              KeyType: HASH
+            - AttributeName: date_commodity
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: DATE-INDEX
+          KeySchema:
+            - AttributeName: arrival_date
+              KeyType: HASH
+            - AttributeName: PK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Project
+          Value: MandiMitra
+
+  # ─── S3 Bucket ────────────────────────────────────
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'mandimitra-data-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: MandiMitra
+
+  # ─── Lambda: Data Ingestion ───────────────────────
+  DataIngestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mandimitra-data-ingestion
+      Handler: handler.handler
+      CodeUri: ../backend/lambdas/data_ingestion/
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          DATA_GOV_API_KEY: !Ref DataGovApiKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PriceTable
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(30 0 * * ? *)  # 6 AM IST = 00:30 UTC
+            Description: Daily mandi price data ingestion
+            Enabled: true
+
+  # ─── Lambda: Chat Handler ─────────────────────────
+  ChatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mandimitra-chat
+      Handler: handler.handler
+      CodeUri: ../backend/lambdas/chat_handler/
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          BEDROCK_AGENT_ID: !Ref BedrockAgentId
+          BEDROCK_AGENT_ALIAS_ID: !Ref BedrockAgentAliasId
+          LANGFUSE_PUBLIC_KEY: !Ref LangfusePublicKey
+          LANGFUSE_SECRET_KEY: !Ref LangfuseSecretKey
+          LANGFUSE_HOST: https://cloud.langfuse.com
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeAgent
+                - bedrock:InvokeModel
+              Resource: '*'
+      Events:
+        ChatApi:
+          Type: Api
+          Properties:
+            Path: /api/chat
+            Method: post
+            RestApiId: !Ref MandiMitraApi
+
+  # ─── Lambda: Price Query ──────────────────────────
+  PriceQueryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mandimitra-price-query
+      Handler: handler.handler
+      CodeUri: ../backend/lambdas/price_query/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref PriceTable
+      Events:
+        PriceApi:
+          Type: Api
+          Properties:
+            Path: /api/prices/{commodity}
+            Method: get
+            RestApiId: !Ref MandiMitraApi
+        AgentActionGroup:
+          Type: Api
+          Properties:
+            Path: /api/agent-action
+            Method: post
+            RestApiId: !Ref MandiMitraApi
+
+  # ─── API Gateway ──────────────────────────────────
+  MandiMitraApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: MandiMitraAPI
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      ThrottlingBurstLimit: 50
+      ThrottlingRateLimit: 100
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway URL
+    Value: !Sub 'https://${MandiMitraApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+  PriceTableName:
+    Description: DynamoDB table name
+    Value: !Ref PriceTable
+  DataBucketName:
+    Description: S3 bucket name
+    Value: !Ref DataBucket
+  ChatFunctionArn:
+    Description: Chat Lambda ARN
+    Value: !GetAtt ChatFunction.Arn
+  PriceQueryFunctionArn:
+    Description: Price Query Lambda ARN (use this for Bedrock Agent Action Group)
+    Value: !GetAtt PriceQueryFunction.Arn

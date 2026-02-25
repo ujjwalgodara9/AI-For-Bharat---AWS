@@ -6,21 +6,12 @@
 type SpeechCallback = (transcript: string) => void;
 type ErrorCallback = (error: string) => void;
 
-interface SpeechRecognitionEvent {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEvent {
-  error: string;
-  message?: string;
-}
-
-let recognition: SpeechRecognition | null = null;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+let recognition: any = null;
 
 export function isVoiceSupported(): boolean {
-  return typeof window !== "undefined" &&
-    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  if (typeof window === "undefined") return false;
+  return "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
 }
 
 export function startListening(
@@ -33,21 +24,20 @@ export function startListening(
     return;
   }
 
-  const SpeechRecognition =
-    window.SpeechRecognition || (window as unknown as { webkitSpeechRecognition: typeof window.SpeechRecognition }).webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  recognition = new SR();
 
   recognition.lang = language === "hi" ? "hi-IN" : "en-IN";
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
 
-  recognition.onresult = (event: SpeechRecognitionEvent) => {
-    const transcript = event.results[0][0].transcript;
+  recognition.onresult = (event: any) => {
+    const transcript: string = event.results[0][0].transcript;
     onResult(transcript);
   };
 
-  recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+  recognition.onerror = (event: any) => {
     if (event.error !== "aborted") {
       onError(`Voice error: ${event.error}`);
     }
