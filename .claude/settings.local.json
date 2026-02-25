@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.data.gov.in)",
+      "WebFetch(domain:lynxbee.com)",
+      "Bash(node --version)",
+      "Bash(npm --version)",
+      "Bash(pip --version)",
+      "Bash(aws --version)",
+      "Bash(npx create-next-app@14 frontend --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\")"
+    ]
+  }
+}

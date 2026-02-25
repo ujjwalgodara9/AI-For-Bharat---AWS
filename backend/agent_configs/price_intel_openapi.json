@@ -1,0 +1,268 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "MandiMitra Price Intelligence Tools",
+    "version": "1.0.0",
+    "description": "Tools for the Price Intelligence Agent to query mandi prices, find nearby mandis, and analyze trends."
+  },
+  "paths": {
+    "/query_mandi_prices": {
+      "get": {
+        "summary": "Query mandi commodity prices",
+        "description": "Fetches current and historical prices for a specific commodity from mandis in a given state. Returns modal price, min price, max price, and date for each record.",
+        "operationId": "query_mandi_prices",
+        "parameters": [
+          {
+            "name": "commodity",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The agricultural commodity name (e.g., Soyabean, Wheat, Onion, Tomato, Potato, Mustard, Chana, Maize, Cotton, Rice)"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "Madhya Pradesh" },
+            "description": "Indian state name (e.g., Madhya Pradesh, Rajasthan, Maharashtra, Uttar Pradesh, Gujarat)"
+          },
+          {
+            "name": "mandi",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Specific mandi/market name (e.g., Indore, Dewas, Ujjain). If not provided, returns prices from all mandis in the state."
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 7 },
+            "description": "Number of days of historical data to fetch (default: 7, max: 90)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Price data with trend and MSP information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "prices": { "type": "array" },
+                    "trend": { "type": "object" },
+                    "msp": { "type": "object" },
+                    "record_count": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/get_nearby_mandis": {
+      "get": {
+        "summary": "Find nearby mandis with prices",
+        "description": "Finds APMC mandis within a specified radius of given GPS coordinates. Returns mandi name, distance, and current commodity prices for comparison.",
+        "operationId": "get_nearby_mandis",
+        "parameters": [
+          {
+            "name": "latitude",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" },
+            "description": "User's latitude coordinate"
+          },
+          {
+            "name": "longitude",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" },
+            "description": "User's longitude coordinate"
+          },
+          {
+            "name": "radius_km",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "number", "default": 100 },
+            "description": "Search radius in kilometers (default: 100)"
+          },
+          {
+            "name": "commodity",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Commodity to fetch prices for at each mandi"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of nearby mandis with distances and prices"
+          }
+        }
+      }
+    },
+    "/get_price_trend": {
+      "get": {
+        "summary": "Get price trend analysis",
+        "description": "Analyzes price trend for a commodity at a specific mandi. Returns trend direction (rising/falling/stable), percentage change, volatility, moving averages, and min/max in the period.",
+        "operationId": "get_price_trend",
+        "parameters": [
+          {
+            "name": "commodity",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Commodity name"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "Madhya Pradesh" },
+            "description": "State name"
+          },
+          {
+            "name": "mandi",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Mandi name"
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 30 },
+            "description": "Number of days for trend analysis"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trend analysis data"
+          }
+        }
+      }
+    },
+    "/get_msp": {
+      "get": {
+        "summary": "Get Minimum Support Price",
+        "description": "Returns the government-announced Minimum Support Price (MSP) for a commodity for the current agricultural year.",
+        "operationId": "get_msp",
+        "parameters": [
+          {
+            "name": "commodity",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Commodity name (e.g., Wheat, Rice, Soyabean)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MSP data"
+          }
+        }
+      }
+    },
+    "/calculate_transport_cost": {
+      "get": {
+        "summary": "Calculate transport cost to a mandi",
+        "description": "Estimates the transportation cost per quintal from the farmer's location to a destination mandi based on distance.",
+        "operationId": "calculate_transport_cost",
+        "parameters": [
+          {
+            "name": "origin_lat",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" },
+            "description": "Origin latitude"
+          },
+          {
+            "name": "origin_lon",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" },
+            "description": "Origin longitude"
+          },
+          {
+            "name": "dest_mandi",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Destination mandi name"
+          },
+          {
+            "name": "quantity_qtl",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "number", "default": 1 },
+            "description": "Quantity in quintals"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transport cost estimation"
+          }
+        }
+      }
+    },
+    "/get_sell_recommendation": {
+      "get": {
+        "summary": "Get sell recommendation data",
+        "description": "Gathers comprehensive data needed for a sell/hold/split recommendation including nearby mandi prices, trends, MSP, perishability, and storage costs.",
+        "operationId": "get_sell_recommendation",
+        "parameters": [
+          {
+            "name": "commodity",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Commodity name"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "Madhya Pradesh" },
+            "description": "State name"
+          },
+          {
+            "name": "latitude",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" },
+            "description": "Farmer's latitude"
+          },
+          {
+            "name": "longitude",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" },
+            "description": "Farmer's longitude"
+          },
+          {
+            "name": "quantity_qtl",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "number", "default": 10 },
+            "description": "Quantity in quintals"
+          },
+          {
+            "name": "storage_available",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "false" },
+            "description": "Whether farmer has storage facility (true/false)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comprehensive recommendation data"
+          }
+        }
+      }
+    }
+  }
+}
