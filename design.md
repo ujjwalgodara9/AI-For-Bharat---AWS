@@ -7,14 +7,14 @@ MandiMitra follows a **multi-agent agentic architecture** built on AWS services,
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        USER INTERFACE                           │
-│              (React Frontend — Mobile-First Web App)            │
+│        (Next.js 14 SSG on S3 — Mobile-First PWA)               │
 │         Hindi / English / Code-Mixed Conversational UI          │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ HTTPS (API Gateway)
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    ORCHESTRATOR AGENT                            │
-│               (Amazon Bedrock Agents — Claude)                  │
+│             (Amazon Bedrock Agents — Nova Pro)                  │
 │                                                                 │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
 │  │  Price    │  │  Sell    │  │Negotiation│  │  Weather-     │  │
@@ -92,7 +92,7 @@ EventBridge (Daily 6 AM IST)
 **Purpose:** Central coordinator that receives user queries, determines intent, and orchestrates specialist agents.
 
 **Design:**
-- Built on Amazon Bedrock Agents with Claude as the foundation model
+- Built on Amazon Bedrock Agents with Nova Pro as the foundation model
 - Uses a system prompt that defines the orchestration logic
 - Maintains conversation state within session
 - Routes to specialist agents based on classified intent
@@ -216,10 +216,11 @@ Input: commodity, quantity, location, storage_available (boolean),
 ## 3. Frontend Design
 
 ### 3.1 Technology Stack
-- **Framework:** React 18 + Next.js 14 (for SSR and SEO)
+- **Framework:** Next.js 14 (SSG with `output: "export"` for S3 static hosting)
 - **Styling:** Tailwind CSS (mobile-first utilities)
-- **State Management:** React Context + useReducer
-- **Deployment:** AWS Amplify Hosting
+- **State Management:** React useState hooks
+- **Deployment:** S3 Static Website Hosting (mandimitra-frontend-471112620976)
+- **PWA:** manifest.json + service worker for offline/installable
 
 ### 3.2 UI Components
 
@@ -301,7 +302,7 @@ GET /api/weather-impact/{commodity}
 
 | Service | Monthly Estimate |
 |---------|-----------------|
-| Amazon Bedrock (Claude Haiku — ~50K queries × 1K tokens avg) | ₹4,000 |
+| Amazon Bedrock (Nova Pro — ~50K queries × 1K tokens avg) | ₹4,000 |
 | DynamoDB (on-demand, ~5GB storage, ~500K reads/month) | ₹800 |
 | Lambda (100K invocations, 256MB, avg 3s) | ₹200 |
 | S3 (10GB storage + transfer) | ₹100 |
