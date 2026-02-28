@@ -18,13 +18,13 @@ export default function QuickActions({ language, onAction, disabled, locationSta
         { label: "भाव देखो", icon: "💰", query: hasLoc ? `सोयाबीन का भाव बताओ ${loc} में` : "सोयाबीन का भाव बताओ" },
         { label: "कहाँ बेचूं?", icon: "📍", query: hasLoc ? `${loc} के पास 20 क्विंटल गेहूं बेचने के लिए सबसे अच्छी मंडी?` : "मेरे पास 20 क्विंटल गेहूं है, सबसे अच्छी मंडी कौन सी है?" },
         { label: "बेचूं या रुकूं?", icon: "⏳", query: "क्या अभी सोयाबीन बेचना चाहिए या कुछ दिन रुकना चाहिए?" },
-        { label: "मंडी के भाव", icon: "🏪", query: hasLoc ? `${loc} की मंडी में सब फसलों के भाव बताओ` : "मेरे पास की मंडी में सब फसलों के भाव बताओ" },
+        { label: "मौसम", icon: "🌤️", query: hasLoc ? `${loc} में अगले 5 दिन मौसम कैसा रहेगा? मंडी जाने में कोई दिक्कत?` : "मौसम कैसा रहेगा अगले 5 दिन?" },
       ]
     : [
         { label: "Check Price", icon: "💰", query: hasLoc ? `What is the current soyabean price in ${loc}?` : "What is the current soyabean price?" },
         { label: "Best Mandi", icon: "📍", query: hasLoc ? `Which mandi near ${loc} has the best wheat price? I have 20 quintals.` : "Which mandi has the best wheat price? I have 20 quintals." },
         { label: "Sell or Hold?", icon: "⏳", query: "Should I sell my soyabean now or wait a few days?" },
-        { label: "Mandi Prices", icon: "🏪", query: hasLoc ? `Show all commodity prices at ${loc} mandi` : "Show all commodity prices at the nearest mandi" },
+        { label: "Weather", icon: "🌤️", query: hasLoc ? `What's the weather forecast for ${loc} for the next 5 days? Is it safe to go to mandi?` : "What's the weather forecast for the next 5 days?" },
       ];
 
   return (
