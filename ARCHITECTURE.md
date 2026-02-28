@@ -5,7 +5,8 @@
 ```
                     ┌─────────────────────────────────────────────┐
                     │           USER (Farmer's Phone)             │
-                    │    Browser / WhatsApp-style Chat UI         │
+                    │    PWA / WhatsApp-style Chat UI              │
+                    │    Voice Input (Hindi/English)               │
                     └──────────────────┬──────────────────────────┘
                                        │ HTTPS + GPS coords
                                        ▼
@@ -13,6 +14,7 @@
                     │         S3 Static Website Hosting           │
                     │     Next.js 14 + Tailwind CSS (SSG)         │
                     │   mandimitra-frontend-471112620976           │
+                    │   PWA (installable) + Service Worker         │
                     └──────────────────┬──────────────────────────┘
                                        │ POST /api/chat
                                        ▼
@@ -39,8 +41,8 @@
                     │    Agent ID: GDSWGCDJIX                    │
                     │    ┌────────────────────────────┐           │
                     │    │ 1. Classify intent           │           │
-                    │    │ 2. Select tool/function      │           │
-                    │    │ 3. Call Action Group Lambda   │           │
+                    │    │ 2. Select action group       │           │
+                    │    │ 3. Call tool function(s)      │           │
                     │    │ 4. Process tool output        │           │
                     │    │ 5. Generate Hindi response    │           │
                     │    └─────────────┬──────────────┘           │
@@ -49,53 +51,53 @@
                     │    │             ▼              │           │
                     │    │  mandimitra-price-query    │           │
                     │    │  (Action Group Lambda)     │           │
-                    │    │  6 functions:              │           │
-                    │    │  - query_mandi_prices      │           │
-                    │    │  - get_nearby_mandis       │           │
-                    │    │  - get_price_trend         │           │
-                    │    │  - get_msp                 │           │
-                    │    │  - get_sell_recommendation │           │
-                    │    │  - get_all_prices_at_mandi │           │
+                    │    │  4 Action Groups:          │           │
+                    │    │  • PriceIntelligenceTools  │           │
+                    │    │  • MandiTools              │           │
+                    │    │  • BrowseTools             │           │
+                    │    │  • WeatherTools            │           │
+                    │    │  12 functions total         │           │
                     │    └─────────────┬──────────────┘           │
                     │                  │                          │
-                    │                  ▼                          │
-                    │    DynamoDB: MandiMitraPrices               │
-                    │    PK: COMMODITY#STATE                      │
-                    │    SK: DATE#MANDI                           │
-                    │    GSI-1 (MANDI-INDEX): mandi_name          │
-                    │    GSI-2 (DATE-INDEX): arrival_date          │
+                    │         ┌────────┴────────┐                │
+                    │         ▼                 ▼                │
+                    │    DynamoDB          Open-Meteo API        │
+                    │    MandiMitraPrices  (Weather forecast)    │
+                    │    4,467 records     5-day agri advisory   │
                     └─────────────────────────────────────────────┘
 ```
 
 ## Data Flow — Chat Message
 
 ```
-User types: "wheat ka bhav MP mein"
+User types: "wheat ka bhav Karnal mein"
      │
      ▼
 Frontend (page.tsx)
-  ├── Gets GPS from browser: {lat: 22.71, lon: 75.85}
+  ├── Gets location from LocationPicker: {city: "Karnal", state: "Haryana"}
   ├── POST /api/chat {message, language: "hi", latitude, longitude, session_id}
      │
      ▼
 API Gateway → mandimitra-chat Lambda (handler.py)
   ├── Parses body: message, language, lat, lon
   ├── Builds augmented message:
-  │   "[Respond in Hindi] [User GPS: lat=22.71, lon=75.85] wheat ka bhav MP mein"
+  │   "[Respond in Hindi] [User GPS: lat=29.68, lon=76.99] wheat ka bhav Karnal mein"
   ├── Calls bedrock_agent_runtime.invoke_agent()
      │
      ▼
 Bedrock Agent (Nova Pro model)
   ├── Pre-processing: classifies intent → PRICE_CHECK
-  ├── Reasoning: "Need wheat prices in Madhya Pradesh"
+  ├── Reasoning: "Need wheat prices in Haryana near Karnal"
   ├── Tool call: PriceIntelligenceTools/query_mandi_prices
-  │   params: {commodity: "wheat", state: "Madhya Pradesh"}
+  │   params: {commodity: "wheat", state: "Haryana", mandi: "Karnal"}
      │
      ▼
 mandimitra-price-query Lambda (handle_agent_action)
-  ├── Calls query_prices("wheat", "Madhya Pradesh")
-  │   → DynamoDB query: PK="WHEAT#MADHYA_PRADESH", SK between dates
-  ├── Calls get_price_trend("wheat", "Madhya Pradesh")
+  ├── Calls query_prices("wheat", "Haryana", "Karnal")
+  │   → Tries exact match on mandi_name "KARNAL"
+  │   → Tries "KARNAL APMC" suffix
+  │   → Falls back to district scan (finds "Indri APMC" in Karnal district)
+  ├── Calls get_price_trend("wheat", "Haryana")
   ├── Calls get_msp("wheat") → ₹2275
   ├── Returns JSON: {prices: [...], trend: {...}, msp: {...}}
      │
@@ -113,6 +115,9 @@ Chat Lambda collects response
      │
      ▼
 Frontend renders ChatBubble with Hindi response
+  ├── Message text with line breaks
+  ├── Price trend mini-chart (SVG) if price data detected
+  ├── WhatsApp share + Copy buttons
   └── Agent trace expandable in UI
 ```
 
@@ -124,24 +129,32 @@ hackathon/
 │   ├── app/
 │   │   ├── page.tsx                   # Main chat page
 │   │   │   - State: messages, language, sessionId, userLocation
-│   │   │   - GPS detection on mount via navigator.geolocation
+│   │   │   - LocationPicker modal for state/city selection
 │   │   │   - sendMessage() → POST /api/chat with location
 │   │   │   - Fallback demo mode when API_BASE not set
 │   │   │
 │   │   ├── components/
-│   │   │   ├── ChatHeader.tsx         # App header with language toggle + location indicator
-│   │   │   ├── ChatBubble.tsx         # Message bubbles + expandable agent trace panel
-│   │   │   ├── ChatInput.tsx          # Text input + voice mic (Web Speech API)
-│   │   │   ├── QuickActions.tsx       # Quick action buttons (4 flows)
+│   │   │   ├── ChatHeader.tsx         # App header with language toggle + location label
+│   │   │   ├── ChatBubble.tsx         # Message bubbles + price chart + WhatsApp share + agent trace
+│   │   │   ├── ChatInput.tsx          # Text input + voice mic (Web Speech API) + Hindi prompt
+│   │   │   ├── PriceChart.tsx         # SVG price comparison chart (auto-extracted from responses)
+│   │   │   ├── QuickActions.tsx       # Quick action buttons (price, mandi, sell, weather)
+│   │   │   ├── LocationPicker.tsx     # State/city picker + GPS detection modal
 │   │   │   ├── TypingIndicator.tsx    # Animated thinking dots
-│   │   │   └── WelcomeScreen.tsx      # Welcome screen with feature cards
+│   │   │   └── WelcomeScreen.tsx      # Welcome screen with feature cards + browse chips
 │   │   │
 │   │   ├── lib/
-│   │   │   ├── api.ts                 # API client, interfaces (ChatMessage, ChatResponse, etc.)
+│   │   │   ├── api.ts                 # API client, interfaces (ChatMessage, PriceData, TrendData)
 │   │   │   └── voice.ts              # Web Speech API wrapper for Hindi/English
 │   │   │
-│   │   ├── layout.tsx                 # Root layout (metadata, fonts)
-│   │   └── globals.css                # Tailwind + custom styles
+│   │   ├── layout.tsx                 # Root layout (PWA manifest, service worker registration)
+│   │   └── globals.css                # Tailwind + custom animations
+│   │
+│   ├── public/
+│   │   ├── manifest.json              # PWA manifest (installable app)
+│   │   ├── sw.js                      # Service worker (offline caching)
+│   │   ├── icon-192.png               # PWA icon 192x192
+│   │   └── icon-512.png               # PWA icon 512x512
 │   │
 │   ├── .env.local                     # NEXT_PUBLIC_API_URL=https://skwsw8qk22...
 │   ├── next.config.mjs                # output: "export" for S3 static hosting
@@ -161,9 +174,7 @@ hackathon/
 │   │   │   └── handler.py             # Price query + Bedrock Action Group Lambda
 │   │   │       - handle_api_request(): Direct GET /api/prices/{commodity}
 │   │   │       - handle_agent_action(): Bedrock Agent tool invocations
-│   │   │       - 7 functions: query_mandi_prices, get_nearby_mandis,
-│   │   │         get_price_trend, get_msp, calculate_transport_cost,
-│   │   │         get_sell_recommendation, get_all_prices_at_mandi
+│   │   │       - 12 functions across 4 action groups
 │   │   │
 │   │   ├── data_ingestion/
 │   │   │   └── handler.py             # Data ingestion Lambda
@@ -174,64 +185,66 @@ hackathon/
 │   │   └── shared/                    # Shared modules (bundled with each Lambda)
 │   │       ├── __init__.py
 │   │       ├── dynamodb_utils.py      # DynamoDB query functions
-│   │       │   - query_prices(commodity, state, mandi, days)
-│   │       │     → PK query with date range, fallback to all history
-│   │       │   - query_mandi_prices(mandi, days)
-│   │       │     → GSI-1 (MANDI-INDEX) query for all commodities
-│   │       │   - get_nearby_mandis(lat, lon, radius, commodity)
-│   │       │     → Haversine distance calc from MANDI_COORDINATES
-│   │       │   - get_price_trend(commodity, state, mandi, days)
-│   │       │     → Statistics: direction, change%, volatility
-│   │       │   - get_msp(commodity) → case-insensitive MSP lookup
-│   │       │   - get_sell_recommendation_data() → comprehensive sell data
-│   │       │   - calculate_net_realization() → price minus transport
-│   │       │   - haversine_distance() → GPS distance in km
+│   │       │   - query_prices(): PK query + APMC suffix fallback + district scan
+│   │       │   - query_mandi_prices(): GSI-1 query + district fallback + partial match
+│   │       │   - get_nearby_mandis(): Haversine distance from 55+ mandi coordinates
+│   │       │   - get_price_trend(): direction, change%, volatility, data_points
+│   │       │   - get_msp(): case-insensitive MSP lookup (20 commodities)
+│   │       │   - get_sell_recommendation_data(): comprehensive sell advisory data
+│   │       │   - list_available_commodities/mandis/states(): browse data
+│   │       │   - calculate_net_realization(): price minus transport cost
+│   │       │   - haversine_distance(): GPS distance in km
+│   │       │
+│   │       ├── weather_utils.py       # Weather advisory (Open-Meteo API)
+│   │       │   - get_weather_advisory(): 5-day forecast + agri recommendations
+│   │       │   - generate_agri_advisory(): rain/heat/storm alerts, sell impact
 │   │       │
 │   │       └── constants.py           # Static configuration
-│   │           - MANDI_COORDINATES: 35 major mandis with GPS
+│   │           - MANDI_COORDINATES: 55+ major mandis with GPS
 │   │           - MSP_RATES: 20 commodities for 2025-26
 │   │           - PERISHABILITY_INDEX: 1-10 scale per commodity
 │   │           - STORAGE_COST_PER_DAY: ₹/qtl/day
 │   │           - TRANSPORT_COST_PER_QTL_PER_KM: ₹0.8
 │   │
 │   ├── agent_configs/
-│   │   ├── orchestrator_prompt.txt    # Bedrock Agent system prompt
-│   │   │   - Intent classification (6 intents)
-│   │   │   - Language rules (Hindi/English auto-detect)
-│   │   │   - Location handling (GPS injection)
-│   │   │   - Response format templates
-│   │   │   - Guardrails
-│   │   │
-│   │   └── price_intel_openapi.json   # OpenAPI spec (not used — Bedrock rejected it)
+│   │   └── orchestrator_prompt.txt    # Bedrock Agent system prompt
+│   │       - Intent classification (8 intents including WEATHER)
+│   │       - Language rules (Hindi/English auto-detect)
+│   │       - Location handling (GPS injection + district search)
+│   │       - Response format templates (price, sell, weather, browse)
+│   │       - Guardrails
 │   │
 │   └── scripts/
-│       ├── fetch_data_local.py        # Initial data fetcher
+│       ├── fetch_all_data.py          # Aggressive state-by-state data fetcher
 │       ├── fetch_more_data.py         # Targeted commodity/state data fetcher
-│       └── load_dynamodb.py           # Batch load items into DynamoDB
+│       ├── fetch_data_local.py        # Initial data fetcher
+│       ├── load_all_data.py           # Batch load items into DynamoDB
+│       └── load_dynamodb.py           # Original batch loader
 │
-├── data/
-│   └── dynamodb_items.json            # Fetched price data (379 records)
-│
-├── deploy_packages/                   # Lambda zip files + test outputs
+├── data/                              # Fetched price data (not committed)
+│   ├── dynamodb_items_all.json        # 2,026 records (first batch)
+│   ├── dynamodb_items_new.json        # 3,572 records (second batch)
+│   └── raw_all_states.json            # 4,110 raw API records
 │
 ├── ARCHITECTURE.md                    # This file
-├── WORKLOG.md                         # Detailed work log with all decisions
+├── DATA_INVENTORY.md                  # Data coverage details
 ├── PLAN.md                            # 5-day execution plan
-├── TEAM_HANDOFF.md                    # Team status document
+├── design.md                          # Detailed design document
+├── requirements.md                    # Requirements specification
 └── README.md                          # Project overview
 ```
 
 ## DynamoDB Schema
 
-**Table: MandiMitraPrices**
+**Table: MandiMitraPrices** (4,467 items)
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| PK | String (Partition Key) | `{COMMODITY}#{STATE}` e.g., `WHEAT#MADHYA_PRADESH` |
-| SK | String (Sort Key) | `{YYYY-MM-DD}#{MANDI_NAME}` e.g., `2026-02-26#ARON APMC` |
+| PK | String (Partition Key) | `{COMMODITY}#{STATE}` e.g., `WHEAT#HARYANA` |
+| SK | String (Sort Key) | `{YYYY-MM-DD}#{MANDI_NAME}` e.g., `2026-02-28#INDRI APMC` |
 | commodity | String | Original commodity name (e.g., "Wheat") |
-| state | String | Original state name (e.g., "Madhya Pradesh") |
-| district | String | District name |
+| state | String | Original state name (e.g., "Haryana") |
+| district | String | District name (e.g., "Karnal") |
 | mandi_name | String | APMC mandi name (uppercase) |
 | arrival_date | String | ISO date (YYYY-MM-DD) |
 | variety | String | Crop variety |
@@ -246,15 +259,23 @@ hackathon/
 **GSI-2 (DATE-INDEX):** PK=`arrival_date`, SK=`PK`
 - Enables: "Show all prices on date X"
 
+## Search & Fallback Strategy
+
+When a user queries a location (e.g., "Karnal"):
+1. **Exact mandi name** → `KARNAL` in MANDI-INDEX
+2. **APMC suffix** → `KARNAL APMC`, `KARNAL(GRAIN)`, `KARNAL(F&V)`
+3. **District scan** → Full table scan with `Attr("district").eq("Karnal")` — finds mandis IN that district (e.g., "Indri APMC" in Karnal district)
+4. **Partial match** → `Attr("mandi_name").contains("KARNAL")`
+
 ## AWS Resources
 
 | Resource | ID/Name | Purpose |
 |----------|---------|---------|
-| DynamoDB | MandiMitraPrices | Price time-series data |
-| S3 (frontend) | mandimitra-frontend-471112620976 | Static website hosting |
+| DynamoDB | MandiMitraPrices (4,467 items) | Price time-series data |
+| S3 (frontend) | mandimitra-frontend-471112620976 | Static website + PWA |
 | S3 (deploy) | mandimitra-deployment-471112620976 | Lambda deployment packages |
 | Lambda | mandimitra-chat | Chat endpoint (invokes Bedrock Agent) |
-| Lambda | mandimitra-price-query | Price queries + Bedrock Action Group |
+| Lambda | mandimitra-price-query | Price queries + Action Groups + Weather |
 | Lambda | mandimitra-data-ingestion | Data fetcher from data.gov.in |
 | API Gateway | skwsw8qk22 | REST API with CORS |
 | Bedrock Agent | GDSWGCDJIX | Multi-agent orchestrator (Nova Pro) |
@@ -264,8 +285,8 @@ hackathon/
 
 ## Agent Action Groups
 
-**PriceIntelligenceTools** (5 functions):
-1. `query_mandi_prices(commodity, state, mandi?, days?)` — Price lookup
+**PriceIntelligenceTools** (ID: REC9WFZCNW, 5 functions):
+1. `query_mandi_prices(commodity, state, mandi?, days?)` — Price lookup with fuzzy matching
 2. `get_nearby_mandis(latitude, longitude, radius_km, commodity?)` — GPS-based mandi finder
 3. `get_price_trend(commodity, state, mandi?, days?)` — Trend analysis
 4. `get_msp(commodity)` — MSP lookup
@@ -274,18 +295,46 @@ hackathon/
 **MandiTools** (1 function):
 1. `get_all_prices_at_mandi(mandi, days?)` — All commodity prices at a mandi
 
+**BrowseTools** (ID: KYYMTPXMWY, 3 functions):
+1. `list_available_commodities(state?)` — List commodities in database
+2. `list_available_mandis(state?)` — List mandis with district info
+3. `list_available_states()` — List all states with data
+
+**WeatherTools** (ID: MIYZDHRQ9H, 1 function):
+1. `get_weather_advisory(location, latitude?, longitude?)` — 5-day weather + agri advisory
+
+## Frontend Features
+
+| Feature | Implementation |
+|---------|---------------|
+| Chat UI | WhatsApp-style bubbles with agent trace panel |
+| Voice Input | Web Speech API (`hi-IN`, `en-IN`) with Hindi prompt |
+| Location Picker | Manual state/city selection + GPS auto-detect |
+| Price Chart | Auto-extracted SVG mini-chart from bot responses |
+| WhatsApp Share | `wa.me/?text=` with message content + branding |
+| Copy Button | `navigator.clipboard.writeText()` |
+| PWA | manifest.json + service worker for offline + installable |
+| Language Toggle | Hindi/English switch in header |
+| Demo Mode | Simulated responses when `API_BASE` not set |
+
 ## Key Design Decisions
 
-1. **Nova Pro over Claude**: Claude requires EULA form on Bedrock; Nova Pro is AWS-native and works immediately. Better fit for AWS hackathon.
+1. **Nova Pro over Claude**: Claude requires EULA on Bedrock; Nova Pro is AWS-native. Better fit for AWS hackathon.
 
-2. **functionSchema over OpenAPI**: Bedrock Agent rejected OpenAPI spec validation. `functionSchema` with inline function definitions is simpler and works.
+2. **functionSchema over OpenAPI**: Bedrock Agent rejected OpenAPI spec. `functionSchema` with inline function definitions works.
 
-3. **Static export (SSG)**: `output: "export"` in Next.js for S3 hosting — no server needed, zero compute cost.
+3. **Static export (SSG)**: `output: "export"` in Next.js for S3 hosting — no server, zero compute cost.
 
-4. **Trace fallback chain**: Bedrock Agent sometimes sends empty chunk bytes but includes the answer in traces. Three-level fallback: chunk → trace answer tag → retry without traces.
+4. **Trace fallback chain**: Bedrock Agent sometimes sends empty chunks but includes answer in traces. Three-level fallback: chunk → trace answer → retry.
 
-5. **TSTALIASID (DRAFT)**: Agent alias `BM6JROSWME` pointed to version 1 (outdated). TSTALIASID always uses DRAFT with latest prompt. AWS CLI v1 doesn't support `create-agent-version`.
+5. **TSTALIASID (DRAFT)**: Always uses latest prompt. No need to create versions.
 
-6. **GPS injection**: User's GPS coordinates are injected into the agent's input message as context, not as a separate API parameter. This lets the agent use them for any tool that needs location.
+6. **GPS injection**: User's GPS injected into agent message as context, not a separate parameter.
 
-7. **DynamoDB single-table design**: One table with composite keys enables all query patterns via PK/SK + GSIs. PAY_PER_REQUEST billing for cost efficiency.
+7. **DynamoDB single-table design**: Composite keys + GSIs enable all query patterns. PAY_PER_REQUEST billing.
+
+8. **District-level fallback search**: Users often name cities/districts, not APMC market names. Full-table scan fallback finds mandis by district.
+
+9. **Open-Meteo for weather**: Free API, no key needed, global coverage. Provides WMO weather codes, daily temperature, precipitation, wind.
+
+10. **PWA for rural deployment**: Installable app without Play Store. Service worker caches for offline use on low-connectivity rural networks.
