@@ -14,7 +14,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from shared.dynamodb_utils import (
     query_prices, query_mandi_prices, get_price_trend, get_msp,
     get_nearby_mandis, calculate_net_realization,
-    get_sell_recommendation_data
+    get_sell_recommendation_data,
+    list_available_commodities, list_available_mandis, list_available_states
 )
 from shared.constants import MANDI_COORDINATES
 
@@ -173,6 +174,31 @@ def handle_agent_action(event):
                 "commodities_count": len(by_commodity),
                 "prices": list(by_commodity.values()),
                 "total_records": len(prices),
+            }
+
+        elif function == "list_available_commodities":
+            state = params.get("state", "")
+            commodities = list_available_commodities(state if state else None)
+            result = {
+                "commodities": commodities,
+                "count": len(commodities),
+                "state_filter": state or "all states",
+            }
+
+        elif function == "list_available_mandis":
+            state = params.get("state", "")
+            mandis = list_available_mandis(state if state else None)
+            result = {
+                "mandis": mandis,
+                "count": len(mandis),
+                "state_filter": state or "all states",
+            }
+
+        elif function == "list_available_states":
+            states = list_available_states()
+            result = {
+                "states": states,
+                "count": len(states),
             }
 
         elif function == "get_sell_recommendation":

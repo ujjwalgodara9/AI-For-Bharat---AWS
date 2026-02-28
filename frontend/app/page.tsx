@@ -7,6 +7,7 @@ import ChatInput from "./components/ChatInput";
 import QuickActions from "./components/QuickActions";
 import TypingIndicator from "./components/TypingIndicator";
 import WelcomeScreen from "./components/WelcomeScreen";
+import LocationPicker from "./components/LocationPicker";
 import type { ChatMessage, ChatResponse } from "./lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
@@ -26,6 +27,8 @@ export default function Home() {
   const [locationStatus, setLocationStatus] = useState<
     "pending" | "granted" | "denied" | "unavailable"
   >("pending");
+  const [locationLabel, setLocationLabel] = useState("");
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -131,21 +134,20 @@ export default function Home() {
         language={language}
         onLanguageChange={setLanguage}
         locationStatus={locationStatus}
-        onRequestLocation={() => {
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                setUserLocation({
-                  latitude: pos.coords.latitude,
-                  longitude: pos.coords.longitude,
-                  accuracy: pos.coords.accuracy,
-                });
-                setLocationStatus("granted");
-              },
-              () => setLocationStatus("denied"),
-              { enableHighAccuracy: true, timeout: 10000 }
-            );
-          }
+        locationLabel={locationLabel}
+        onRequestLocation={() => setShowLocationPicker(true)}
+      />
+
+      {/* Location Picker Modal */}
+      <LocationPicker
+        language={language}
+        isOpen={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onSelectLocation={(loc) => {
+          setUserLocation({ latitude: loc.latitude, longitude: loc.longitude });
+          setLocationLabel(loc.label);
+          setLocationStatus("granted");
+          setShowLocationPicker(false);
         }}
       />
 

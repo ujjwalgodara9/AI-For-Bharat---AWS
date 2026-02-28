@@ -23,28 +23,40 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
       </p>
 
       {/* Feature cards */}
-      <div className="grid grid-cols-2 gap-3 w-full max-w-sm mb-6">
+      <div className="grid grid-cols-2 gap-3 w-full max-w-sm mb-4">
         <FeatureCard
           icon="💰"
           title={isHindi ? "लाइव भाव" : "Live Prices"}
-          desc={isHindi ? "500+ मंडियों के भाव" : "Prices from 500+ mandis"}
+          desc={isHindi ? "किसी भी फसल का भाव" : "Check any crop price"}
           onClick={() =>
             onQuickAction(
               isHindi
-                ? "इंदौर मंडी में सोयाबीन का आज का भाव बताओ"
-                : "What is soyabean price in Indore today?"
+                ? "गेहूं का भाव बताओ मध्य प्रदेश में"
+                : "What is wheat price in Madhya Pradesh?"
             )
           }
         />
         <FeatureCard
           icon="📍"
           title={isHindi ? "सबसे अच्छी मंडी" : "Best Mandi"}
-          desc={isHindi ? "Transport cost समेत" : "Including transport cost"}
+          desc={isHindi ? "पास की मंडियां" : "Nearby mandis"}
           onClick={() =>
             onQuickAction(
               isHindi
-                ? "इंदौर के पास गेहूं के लिए सबसे अच्छी मंडी कौन सी है?"
-                : "Which is the best mandi for wheat near Indore?"
+                ? "मेरे पास की मंडियों में गेहूं कहाँ महंगा है?"
+                : "Which nearby mandi has the best wheat price?"
+            )
+          }
+        />
+        <FeatureCard
+          icon="🏪"
+          title={isHindi ? "मंडी के सब भाव" : "All Mandi Prices"}
+          desc={isHindi ? "एक मंडी की सब फसलें" : "All crops at a mandi"}
+          onClick={() =>
+            onQuickAction(
+              isHindi
+                ? "इंदौर मंडी में आज कौन कौन सी फसलों का भाव है?"
+                : "What are all the commodity prices at Indore mandi today?"
             )
           }
         />
@@ -55,23 +67,60 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
           onClick={() =>
             onQuickAction(
               isHindi
-                ? "क्या अभी प्याज बेचना चाहिए?"
-                : "Should I sell onion now or wait?"
+                ? "क्या अभी सोयाबीन बेचना चाहिए या रुकना चाहिए?"
+                : "Should I sell soyabean now or wait?"
             )
           }
         />
-        <FeatureCard
-          icon="📋"
-          title={isHindi ? "मूल्य पत्र" : "Price Brief"}
-          desc={isHindi ? "मंडी में negotiate करें" : "Negotiate at mandi"}
-          onClick={() =>
-            onQuickAction(
-              isHindi
-                ? "गेहूं का price brief बनाओ इंदौर मंडी के लिए"
-                : "Generate price brief for wheat at Indore mandi"
-            )
-          }
-        />
+      </div>
+
+      {/* Browse options */}
+      <div className="w-full max-w-sm mb-4">
+        <p className="text-xs text-gray-400 px-1 mb-2 font-medium">
+          {isHindi ? "या पूछें:" : "Or ask:"}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <QuickChip
+            label={isHindi ? "📋 Price Brief" : "📋 Price Brief"}
+            onClick={() =>
+              onQuickAction(
+                isHindi
+                  ? "गेहूं का price brief बनाओ negotiation के लिए"
+                  : "Generate a price brief for wheat for negotiation"
+              )
+            }
+          />
+          <QuickChip
+            label={isHindi ? "📊 MSP क्या है?" : "📊 What is MSP?"}
+            onClick={() =>
+              onQuickAction(
+                isHindi
+                  ? "गेहूं का MSP क्या है?"
+                  : "What is the MSP for wheat?"
+              )
+            }
+          />
+          <QuickChip
+            label={isHindi ? "🌾 कौन सी फसलें?" : "🌾 Which crops?"}
+            onClick={() =>
+              onQuickAction(
+                isHindi
+                  ? "कौन कौन सी फसलों का डाटा उपलब्ध है?"
+                  : "Which commodities data is available?"
+              )
+            }
+          />
+          <QuickChip
+            label={isHindi ? "🏪 कौन सी मंडियां?" : "🏪 Which mandis?"}
+            onClick={() =>
+              onQuickAction(
+                isHindi
+                  ? "कौन कौन सी मंडियों का डाटा है?"
+                  : "Which mandis data is available?"
+              )
+            }
+          />
+        </div>
       </div>
 
       {/* Data source badge */}
@@ -109,6 +158,23 @@ function FeatureCard({
       <span className="text-2xl">{icon}</span>
       <h3 className="text-sm font-semibold text-gray-800 mt-2">{title}</h3>
       <p className="text-[11px] text-gray-400 mt-0.5">{desc}</p>
+    </button>
+  );
+}
+
+function QuickChip({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="bg-white border border-gray-200 text-gray-600 rounded-full px-3 py-1.5 text-xs hover:border-[#2d6a4f]/30 hover:text-[#2d6a4f] transition-all"
+    >
+      {label}
     </button>
   );
 }

@@ -7,17 +7,17 @@ interface QuickActionsProps {
 }
 
 const ACTIONS_HI = [
-  { label: "भाव देखो", icon: "💰", query: "सोयाबीन का आज का भाव बताओ इंदौर मंडी में" },
-  { label: "कहाँ बेचूं?", icon: "📍", query: "मेरे पास 20 क्विंटल गेहूं है, सबसे अच्छी मंडी कौन सी है इंदौर के पास?" },
+  { label: "भाव देखो", icon: "💰", query: "सोयाबीन का भाव बताओ" },
+  { label: "कहाँ बेचूं?", icon: "📍", query: "मेरे पास 20 क्विंटल गेहूं है, सबसे अच्छी मंडी कौन सी है?" },
   { label: "बेचूं या रुकूं?", icon: "⏳", query: "क्या अभी सोयाबीन बेचना चाहिए या कुछ दिन रुकना चाहिए?" },
-  { label: "Price Brief", icon: "📋", query: "इंदौर मंडी में गेहूं का price brief दो negotiation के लिए" },
+  { label: "मंडी के भाव", icon: "🏪", query: "इंदौर मंडी में सब फसलों के भाव बताओ" },
 ];
 
 const ACTIONS_EN = [
-  { label: "Check Price", icon: "💰", query: "What is the current soyabean price in Indore mandi?" },
-  { label: "Best Mandi", icon: "📍", query: "Which mandi near Indore has the best wheat price? I have 20 quintals." },
+  { label: "Check Price", icon: "💰", query: "What is the current soyabean price?" },
+  { label: "Best Mandi", icon: "📍", query: "Which mandi has the best wheat price? I have 20 quintals." },
   { label: "Sell or Hold?", icon: "⏳", query: "Should I sell my soyabean now or wait a few days?" },
-  { label: "Price Brief", icon: "📋", query: "Generate a negotiation price brief for wheat at Indore mandi" },
+  { label: "Mandi Prices", icon: "🏪", query: "Show all commodity prices at Indore mandi" },
 ];
 
 export default function QuickActions({ language, onAction, disabled }: QuickActionsProps) {
