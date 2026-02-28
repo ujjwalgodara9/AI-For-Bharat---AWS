@@ -7,6 +7,7 @@ import os
 import json
 import logging
 import sys
+from datetime import datetime, timedelta
 
 # Add shared module to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -14,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from shared.dynamodb_utils import (
     query_prices, query_mandi_prices, get_price_trend, get_msp,
     get_nearby_mandis, calculate_net_realization,
-    get_sell_recommendation_data,
+    get_sell_recommendation_data, get_mandi_profile,
     list_available_commodities, list_available_mandis, list_available_states
 )
 from shared.constants import MANDI_COORDINATES
@@ -94,11 +95,31 @@ def handle_agent_action(event):
             trend = get_price_trend(commodity, state, mandi or "", days)
             msp = get_msp(commodity)
 
+            # Determine data freshness
+            today = datetime.utcnow().strftime("%Y-%m-%d")
+            yesterday = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+            latest_date = prices[-1].get("arrival_date", "") if prices else ""
+            data_freshness = "today" if latest_date == today else (
+                "yesterday" if latest_date == yesterday else f"last_available:{latest_date}"
+            )
+
+            # Separate today's and previous day's prices for comparison
+            today_prices = [p for p in prices if p.get("arrival_date") == today]
+            yesterday_prices = [p for p in prices if p.get("arrival_date") == yesterday]
+            previous_prices = yesterday_prices if yesterday_prices else [
+                p for p in prices if p.get("arrival_date") == latest_date and latest_date != today
+            ]
+
             result = {
                 "prices": prices[-10:],
+                "today_prices": today_prices[-5:] if today_prices else [],
+                "previous_day_prices": previous_prices[-5:] if previous_prices else [],
+                "data_freshness": data_freshness,
+                "latest_data_date": latest_date,
                 "trend": trend,
                 "msp": msp,
                 "record_count": len(prices),
+                "note": "Data sourced from Agmarknet. Mandi prices are finalized daily by 5:00 PM IST." if not today_prices else "",
             }
 
         elif function == "get_nearby_mandis":
@@ -221,6 +242,11 @@ def handle_agent_action(event):
             result = get_sell_recommendation_data(
                 commodity, state, lat, lon, quantity, storage
             )
+
+        elif function == "get_mandi_profile":
+            mandi = params.get("mandi", "")
+            days = int(params.get("days", "7"))
+            result = get_mandi_profile(mandi, days)
 
         else:
             result = {"error": f"Unknown function: {function}"}

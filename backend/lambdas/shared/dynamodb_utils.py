@@ -272,6 +272,22 @@ def get_sell_recommendation_data(commodity: str, state: str, lat: float, lon: fl
     mandis_with_prices = [m for m in nearby if m.get("net_realization")]
     mandis_with_prices.sort(key=lambda x: x["net_realization"], reverse=True)
 
+    # Calculate shelf life and recommended hold time based on perishability
+    shelf_life_days = {
+        1: 180, 2: 90, 3: 60, 4: 30, 5: 14, 6: 10, 7: 7, 8: 5, 9: 3, 10: 1
+    }.get(perish, 30)
+
+    # Recommend hold days only if trend is rising and commodity can last
+    recommended_hold_days = 0
+    if trend.get("trend") == "rising" and storage_available:
+        # Hold up to 30% of shelf life, max 15 days
+        recommended_hold_days = min(int(shelf_life_days * 0.3), 15)
+    elif trend.get("trend") == "stable" and perish <= 3 and storage_available:
+        recommended_hold_days = min(int(shelf_life_days * 0.2), 10)
+
+    # Estimate storage loss if holding
+    total_storage_cost = storage_cost * recommended_hold_days * quantity if recommended_hold_days > 0 else 0
+
     return {
         "commodity": commodity,
         "quantity_qtl": quantity,
@@ -280,7 +296,10 @@ def get_sell_recommendation_data(commodity: str, state: str, lat: float, lon: fl
         "trend": trend,
         "msp": msp,
         "perishability_index": perish,
+        "shelf_life_days": shelf_life_days,
+        "recommended_hold_days": recommended_hold_days,
         "storage_cost_per_day": storage_cost,
+        "total_storage_cost_if_held": round(total_storage_cost, 2),
         "storage_available": storage_available,
     }
 
@@ -359,6 +378,89 @@ def list_available_states() -> list:
             states.add(item.get("state", ""))
 
     return sorted([s for s in states if s])
+
+
+def get_mandi_profile(mandi: str, days: int = 7) -> dict:
+    """Get comprehensive mandi profile — all commodities, prices, and metadata."""
+    mandi_upper = mandi.upper().strip()
+
+    # Query using MANDI-INDEX GSI
+    try:
+        response = table.query(
+            IndexName="MANDI-INDEX",
+            KeyConditionExpression=Key("mandi_name").eq(mandi_upper),
+            ScanIndexForward=False,
+            Limit=100,
+        )
+        items = response.get("Items", [])
+    except Exception:
+        items = []
+
+    # Fallback: try with APMC suffix and partial match
+    if not items:
+        for suffix in [" APMC", "(GRAIN)", "(F&V)"]:
+            try:
+                response = table.query(
+                    IndexName="MANDI-INDEX",
+                    KeyConditionExpression=Key("mandi_name").eq(f"{mandi_upper}{suffix}"),
+                    ScanIndexForward=False,
+                    Limit=100,
+                )
+                items = response.get("Items", [])
+                if items:
+                    break
+            except Exception:
+                continue
+
+    if not items:
+        # Full scan fallback with partial match
+        response = table.scan(
+            FilterExpression=Attr("mandi_name").contains(mandi_upper) |
+                           Attr("district").eq(mandi.strip()),
+            Limit=200,
+        )
+        items = response.get("Items", [])
+
+    items = [_decimal_to_float(i) for i in items]
+
+    # Group by commodity and get latest price
+    commodity_prices = {}
+    for item in items:
+        commodity = item.get("commodity", "")
+        if commodity not in commodity_prices or item.get("arrival_date", "") > commodity_prices[commodity].get("arrival_date", ""):
+            commodity_prices[commodity] = item
+
+    # Sort by modal_price descending
+    sorted_commodities = sorted(
+        commodity_prices.values(),
+        key=lambda x: x.get("modal_price", 0),
+        reverse=True
+    )
+
+    # Get mandi metadata
+    first_item = items[0] if items else {}
+    mandi_name = first_item.get("mandi_name", mandi_upper)
+    district = first_item.get("district", "")
+    state = first_item.get("state", "")
+    coords = MANDI_COORDINATES.get(mandi.strip().title(), None)
+
+    return {
+        "mandi_name": mandi_name,
+        "district": district,
+        "state": state,
+        "coordinates": {"latitude": coords[0], "longitude": coords[1]} if coords else None,
+        "total_commodities_traded": len(sorted_commodities),
+        "commodities": sorted_commodities[:20],
+        "data_source": "Agmarknet (data.gov.in)",
+        "agmarknet_info": {
+            "portal": "https://agmarknet.gov.in",
+            "data_api": "https://data.gov.in",
+            "update_schedule": "Daily by 5:00 PM IST (per DMI guidelines)",
+            "coverage": "2000+ APMC mandis across India",
+            "fields": "commodity, variety, min_price, max_price, modal_price, arrival_date",
+        },
+        "total_records_found": len(items),
+    }
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

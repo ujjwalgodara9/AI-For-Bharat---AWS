@@ -2,7 +2,9 @@
 MandiMitra — Data Ingestion Lambda
 Fetches daily commodity prices from data.gov.in Agmarknet API and writes to DynamoDB.
 
-Triggered by: EventBridge (daily at 6 AM IST) or manual invocation.
+Triggered by: EventBridge (daily at 5:30 PM IST / 12:00 PM UTC) or manual invocation.
+Note: Agmarknet mandis finalize daily auction data by 5:00 PM IST (per DMI guidelines).
+We schedule ingestion at 5:30 PM IST to ensure we capture the latest finalized data.
 """
 import os
 import json
@@ -41,7 +43,11 @@ STATES = [
 
 
 def handler(event, context):
-    """Main Lambda handler for data ingestion."""
+    """Main Lambda handler for data ingestion.
+
+    Recommended schedule: 5:30 PM IST (12:00 UTC) daily.
+    Agmarknet mandis finalize auction data by 5:00 PM IST per DMI guidelines.
+    """
     table = dynamodb.Table(TABLE_NAME)
     total_records = 0
     errors = []
@@ -189,6 +195,27 @@ def transform_record(record: dict, commodity: str, state: str) -> dict:
 
     if modal_price is None:
         return None  # Skip records without a modal price
+
+    # Data accuracy validation
+    # Rule 1: modal_price must be between min and max (with 5% tolerance)
+    if min_price is not None and max_price is not None:
+        tolerance = Decimal("0.05")
+        min_bound = min_price * (1 - tolerance)
+        max_bound = max_price * (1 + tolerance)
+        if modal_price < min_bound or modal_price > max_bound:
+            logger.warning(f"Skipping record: modal_price {modal_price} outside min-max range [{min_price}, {max_price}] for {market}")
+            return None
+
+    # Rule 2: prices must be positive and realistic (₹1 to ₹5,00,000 per quintal)
+    for price_val in [min_price, max_price, modal_price]:
+        if price_val is not None and (price_val < 1 or price_val > 500000):
+            logger.warning(f"Skipping record: unrealistic price {price_val} for {market}")
+            return None
+
+    # Rule 3: date must not be in the future
+    if parsed_date > datetime.utcnow() + timedelta(days=1):
+        logger.warning(f"Skipping record: future date {iso_date} for {market}")
+        return None
 
     state_clean = state.upper().replace(" ", "_")
 

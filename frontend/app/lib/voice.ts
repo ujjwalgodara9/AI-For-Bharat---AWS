@@ -32,18 +32,40 @@ export function startListening(
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
 
+  let hasResult = false;
+
   recognition.onresult = (event: any) => {
+    hasResult = true;
     const transcript: string = event.results[0][0].transcript;
-    onResult(transcript);
+    if (transcript && transcript.trim()) {
+      onResult(transcript.trim());
+    }
   };
 
   recognition.onerror = (event: any) => {
-    if (event.error !== "aborted") {
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      onError("Microphone permission denied. Please allow microphone access in your browser settings.");
+    } else if (event.error === "no-speech") {
+      onError("No speech detected. Please try again and speak clearly.");
+    } else if (event.error !== "aborted") {
       onError(`Voice error: ${event.error}`);
     }
   };
 
-  recognition.start();
+  recognition.onend = () => {
+    if (!hasResult) {
+      // Recognition ended without any result - notify user
+      onError("No speech detected. Please tap the mic and speak clearly.");
+    }
+    recognition = null;
+  };
+
+  try {
+    recognition.start();
+  } catch {
+    onError("Could not start voice input. Please try again.");
+    recognition = null;
+  }
 }
 
 export function stopListening(): void {
