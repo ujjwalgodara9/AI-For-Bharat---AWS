@@ -18,6 +18,7 @@ from shared.dynamodb_utils import (
     list_available_commodities, list_available_mandis, list_available_states
 )
 from shared.constants import MANDI_COORDINATES
+from shared.weather_utils import get_weather_advisory
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -200,6 +201,14 @@ def handle_agent_action(event):
                 "states": states,
                 "count": len(states),
             }
+
+        elif function == "get_weather_advisory":
+            location = params.get("location", "")
+            lat = params.get("latitude", "")
+            lon = params.get("longitude", "")
+            lat_f = float(lat) if lat else None
+            lon_f = float(lon) if lon else None
+            result = get_weather_advisory(location, lat_f, lon_f)
 
         elif function == "get_sell_recommendation":
             commodity = params.get("commodity", "")

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { ChatMessage, AgentTraceStep } from "../lib/api";
+import PriceChart, { extractPriceData } from "./PriceChart";
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -10,6 +11,10 @@ interface ChatBubbleProps {
 export default function ChatBubble({ message }: ChatBubbleProps) {
   const [showTrace, setShowTrace] = useState(false);
   const isUser = message.role === "user";
+  const priceData = useMemo(
+    () => (!isUser ? extractPriceData(message.content) : null),
+    [isUser, message.content]
+  );
 
   const handleWhatsAppShare = () => {
     const text = encodeURIComponent(
@@ -51,6 +56,11 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
             </span>
           ))}
         </div>
+
+        {/* Price mini-chart */}
+        {!isUser && priceData && (
+          <PriceChart data={priceData} title="Price Comparison" />
+        )}
 
         {/* Action buttons for bot messages */}
         {!isUser && (
