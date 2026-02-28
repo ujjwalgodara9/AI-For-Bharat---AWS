@@ -30,13 +30,45 @@ def query_prices(commodity: str, state: str, mandi: str = None, days: int = 7) -
     pk = f"{commodity.upper()}#{state_clean}"
 
     if mandi:
+        mandi_upper = mandi.upper().strip()
         # Query specific mandi within date range
         response = table.query(
             KeyConditionExpression=Key("PK").eq(pk) & Key("SK").between(
-                f"{start_date}#{mandi.upper()}",
-                f"{end_date}#{mandi.upper()}~"  # ~ sorts after all chars
+                f"{start_date}#{mandi_upper}",
+                f"{end_date}#{mandi_upper}~"
             )
         )
+        items = response.get("Items", [])
+
+        # Fallback: try with APMC suffix
+        if not items:
+            for suffix in [" APMC", "(GRAIN)", "(F&V)"]:
+                candidate = f"{mandi_upper}{suffix}"
+                response = table.query(
+                    KeyConditionExpression=Key("PK").eq(pk) & Key("SK").between(
+                        f"{start_date}#{candidate}",
+                        f"{end_date}#{candidate}~"
+                    )
+                )
+                items = response.get("Items", [])
+                if items:
+                    break
+
+        # Fallback: search without date filter
+        if not items:
+            response = table.query(
+                KeyConditionExpression=Key("PK").eq(pk),
+                ScanIndexForward=False,
+                Limit=20,
+            )
+            all_items = response.get("Items", [])
+            # Filter by mandi name containing the search term
+            items = [i for i in all_items if mandi_upper in i.get("mandi_name", "")]
+            if not items:
+                # Try district match
+                items = [i for i in all_items if mandi.strip().lower() in i.get("district", "").lower()]
+            if not items:
+                items = all_items  # Return whatever we have for this commodity+state
     else:
         # Query all mandis in this state for this commodity
         response = table.query(
@@ -45,15 +77,14 @@ def query_prices(commodity: str, state: str, mandi: str = None, days: int = 7) -
                 f"{end_date}#~"
             )
         )
-
-    items = response.get("Items", [])
+        items = response.get("Items", [])
 
     # Fallback: if no recent data found, search all available data
     if not items and days > 0:
         fallback_pk = f"{commodity.strip().upper()}#{state.strip().upper().replace(' ', '_')}"
         fallback_response = table.query(
             KeyConditionExpression=Key("PK").eq(fallback_pk),
-            ScanIndexForward=False,  # newest first
+            ScanIndexForward=False,
             Limit=20,
         )
         items = fallback_response.get("Items", [])
@@ -64,28 +95,59 @@ def query_prices(commodity: str, state: str, mandi: str = None, days: int = 7) -
 
 def query_mandi_prices(mandi: str, days: int = 7) -> list:
     """Query all commodity prices for a specific mandi using GSI-1.
-    Falls back to all historical data if no recent data found."""
+    Falls back to district-level search and then all historical data."""
     end_date = datetime.utcnow().strftime("%Y-%m-%d")
     start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    mandi_upper = mandi.upper().strip()
 
+    # Try exact mandi name match first
     response = table.query(
         IndexName="MANDI-INDEX",
-        KeyConditionExpression=Key("mandi_name").eq(mandi.upper()) & Key("date_commodity").between(
+        KeyConditionExpression=Key("mandi_name").eq(mandi_upper) & Key("date_commodity").between(
             f"{start_date}#",
             f"{end_date}#~"
         )
     )
     items = response.get("Items", [])
 
-    # Fallback: if no recent data, get latest available
-    if not items and days > 0:
-        response = table.query(
-            IndexName="MANDI-INDEX",
-            KeyConditionExpression=Key("mandi_name").eq(mandi.upper()),
-            ScanIndexForward=False,
-            Limit=50,
-        )
+    # Fallback 1: try with common suffixes (APMC, F&V, etc.)
+    if not items:
+        for suffix in ["", " APMC", "(GRAIN)", "(F&V)"]:
+            candidate = f"{mandi_upper}{suffix}"
+            response = table.query(
+                IndexName="MANDI-INDEX",
+                KeyConditionExpression=Key("mandi_name").eq(candidate),
+                ScanIndexForward=False,
+                Limit=50,
+            )
+            items = response.get("Items", [])
+            if items:
+                break
+
+    # Fallback 2: search by district (full table scan with filter — no Limit)
+    if not items:
+        scan_kwargs = {
+            "FilterExpression": Attr("district").eq(mandi.strip()) | Attr("district").eq(mandi.strip().title()),
+        }
+        response = table.scan(**scan_kwargs)
         items = response.get("Items", [])
+        # Paginate scan if needed
+        while not items and "LastEvaluatedKey" in response:
+            scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+            response = table.scan(**scan_kwargs)
+            items.extend(response.get("Items", []))
+
+    # Fallback 3: partial mandi name match via scan
+    if not items:
+        scan_kwargs = {
+            "FilterExpression": Attr("mandi_name").contains(mandi_upper),
+        }
+        response = table.scan(**scan_kwargs)
+        items = response.get("Items", [])
+        while not items and "LastEvaluatedKey" in response:
+            scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+            response = table.scan(**scan_kwargs)
+            items.extend(response.get("Items", []))
 
     return [_decimal_to_float(item) for item in items]
 
