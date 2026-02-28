@@ -28,6 +28,8 @@ export default function Home() {
     "pending" | "granted" | "denied" | "unavailable"
   >("pending");
   const [locationLabel, setLocationLabel] = useState("");
+  const [locationState, setLocationState] = useState("");
+  const [locationCity, setLocationCity] = useState("");
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -39,26 +41,15 @@ export default function Home() {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
 
-  // Request GPS location on mount
+  // Auto-open location picker on first visit if no location is set
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocationStatus("unavailable");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLocation({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-        });
-        setLocationStatus("granted");
-      },
-      () => {
-        setLocationStatus("denied");
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-    );
+    const timer = setTimeout(() => {
+      if (!userLocation) {
+        setShowLocationPicker(true);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sendMessage = async (content: string) => {
@@ -146,6 +137,8 @@ export default function Home() {
         onSelectLocation={(loc) => {
           setUserLocation({ latitude: loc.latitude, longitude: loc.longitude });
           setLocationLabel(loc.label);
+          setLocationState(loc.state || "");
+          setLocationCity(loc.city || "");
           setLocationStatus("granted");
           setShowLocationPicker(false);
         }}
@@ -154,7 +147,7 @@ export default function Home() {
       {/* Chat area */}
       <div className="flex-1 overflow-y-auto chat-scroll">
         {messages.length === 0 ? (
-          <WelcomeScreen language={language} onQuickAction={sendMessage} />
+          <WelcomeScreen language={language} onQuickAction={sendMessage} locationState={locationState} locationCity={locationCity} locationLabel={locationLabel} />
         ) : (
           <div className="py-4">
             {messages.map((msg) => (
@@ -172,6 +165,8 @@ export default function Home() {
           language={language}
           onAction={sendMessage}
           disabled={isLoading}
+          locationState={locationState}
+          locationCity={locationCity}
         />
       )}
 
