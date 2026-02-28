@@ -3,10 +3,15 @@
 interface WelcomeScreenProps {
   language: string;
   onQuickAction: (message: string) => void;
+  locationState?: string;
+  locationCity?: string;
+  locationLabel?: string;
 }
 
-export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreenProps) {
+export default function WelcomeScreen({ language, onQuickAction, locationState, locationCity, locationLabel }: WelcomeScreenProps) {
   const isHindi = language === "hi";
+  const loc = locationCity || locationState || "";
+  const hasLocation = !!loc;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
@@ -16,35 +21,42 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
       </div>
 
       <h2 className="text-2xl font-bold text-[#2d6a4f] mb-1">MandiMitra</h2>
-      <p className="text-sm text-gray-500 mb-6 text-center">
+      <p className="text-sm text-gray-500 mb-2 text-center">
         {isHindi
           ? "AI-संचालित मंडी बाज़ार बुद्धिमत्ता — किसानों के लिए"
           : "AI-powered Mandi Market Intelligence — for Farmers"}
       </p>
+
+      {/* Show selected location */}
+      {locationLabel && (
+        <p className="text-xs text-[#2d6a4f] bg-green-50 border border-green-200 rounded-full px-3 py-1 mb-4">
+          📍 {locationLabel}
+        </p>
+      )}
 
       {/* Feature cards */}
       <div className="grid grid-cols-2 gap-3 w-full max-w-sm mb-4">
         <FeatureCard
           icon="💰"
           title={isHindi ? "लाइव भाव" : "Live Prices"}
-          desc={isHindi ? "किसी भी फसल का भाव" : "Check any crop price"}
+          desc={isHindi ? (hasLocation ? `${loc} में भाव` : "किसी भी फसल का भाव") : (hasLocation ? `Prices in ${loc}` : "Check any crop price")}
           onClick={() =>
             onQuickAction(
               isHindi
-                ? "गेहूं का भाव बताओ मध्य प्रदेश में"
-                : "What is wheat price in Madhya Pradesh?"
+                ? (hasLocation ? `गेहूं का भाव बताओ ${loc} में` : "गेहूं का भाव बताओ")
+                : (hasLocation ? `What is wheat price in ${loc}?` : "What is wheat price?")
             )
           }
         />
         <FeatureCard
           icon="📍"
           title={isHindi ? "सबसे अच्छी मंडी" : "Best Mandi"}
-          desc={isHindi ? "पास की मंडियां" : "Nearby mandis"}
+          desc={isHindi ? (hasLocation ? `${loc} के पास` : "पास की मंडियां") : (hasLocation ? `Near ${loc}` : "Nearby mandis")}
           onClick={() =>
             onQuickAction(
               isHindi
-                ? "मेरे पास की मंडियों में गेहूं कहाँ महंगा है?"
-                : "Which nearby mandi has the best wheat price?"
+                ? (hasLocation ? `${loc} के पास गेहूं के लिए सबसे अच्छी मंडी कौन सी है?` : "मेरे पास की मंडियों में गेहूं कहाँ महंगा है?")
+                : (hasLocation ? `Which mandi near ${loc} has the best wheat price?` : "Which nearby mandi has the best wheat price?")
             )
           }
         />
@@ -55,8 +67,8 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
           onClick={() =>
             onQuickAction(
               isHindi
-                ? "इंदौर मंडी में आज कौन कौन सी फसलों का भाव है?"
-                : "What are all the commodity prices at Indore mandi today?"
+                ? (hasLocation ? `${loc} की मंडी में आज सब फसलों का भाव बताओ` : "मेरे पास की मंडी में आज सब फसलों का भाव बताओ")
+                : (hasLocation ? `Show all commodity prices at ${loc} mandi today` : "Show all commodity prices at the nearest mandi")
             )
           }
         />
@@ -85,8 +97,8 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
             onClick={() =>
               onQuickAction(
                 isHindi
-                  ? "गेहूं का price brief बनाओ negotiation के लिए"
-                  : "Generate a price brief for wheat for negotiation"
+                  ? (hasLocation ? `${loc} में गेहूं का price brief बनाओ negotiation के लिए` : "गेहूं का price brief बनाओ negotiation के लिए")
+                  : (hasLocation ? `Generate a price brief for wheat in ${loc}` : "Generate a price brief for wheat for negotiation")
               )
             }
           />
@@ -94,9 +106,7 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
             label={isHindi ? "📊 MSP क्या है?" : "📊 What is MSP?"}
             onClick={() =>
               onQuickAction(
-                isHindi
-                  ? "गेहूं का MSP क्या है?"
-                  : "What is the MSP for wheat?"
+                isHindi ? "गेहूं का MSP क्या है?" : "What is the MSP for wheat?"
               )
             }
           />
@@ -105,8 +115,8 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
             onClick={() =>
               onQuickAction(
                 isHindi
-                  ? "कौन कौन सी फसलों का डाटा उपलब्ध है?"
-                  : "Which commodities data is available?"
+                  ? (locationState ? `${locationState} में कौन कौन सी फसलों का डाटा उपलब्ध है?` : "कौन कौन सी फसलों का डाटा उपलब्ध है?")
+                  : (locationState ? `Which commodities data is available in ${locationState}?` : "Which commodities data is available?")
               )
             }
           />
@@ -115,8 +125,8 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
             onClick={() =>
               onQuickAction(
                 isHindi
-                  ? "कौन कौन सी मंडियों का डाटा है?"
-                  : "Which mandis data is available?"
+                  ? (locationState ? `${locationState} में कौन कौन सी मंडियों का डाटा है?` : "कौन कौन सी मंडियों का डाटा है?")
+                  : (locationState ? `Which mandis are available in ${locationState}?` : "Which mandis data is available?")
               )
             }
           />

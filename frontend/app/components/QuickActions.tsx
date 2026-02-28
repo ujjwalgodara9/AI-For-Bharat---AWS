@@ -4,24 +4,28 @@ interface QuickActionsProps {
   language: string;
   onAction: (message: string) => void;
   disabled: boolean;
+  locationState?: string;
+  locationCity?: string;
 }
 
-const ACTIONS_HI = [
-  { label: "भाव देखो", icon: "💰", query: "सोयाबीन का भाव बताओ" },
-  { label: "कहाँ बेचूं?", icon: "📍", query: "मेरे पास 20 क्विंटल गेहूं है, सबसे अच्छी मंडी कौन सी है?" },
-  { label: "बेचूं या रुकूं?", icon: "⏳", query: "क्या अभी सोयाबीन बेचना चाहिए या कुछ दिन रुकना चाहिए?" },
-  { label: "मंडी के भाव", icon: "🏪", query: "इंदौर मंडी में सब फसलों के भाव बताओ" },
-];
+export default function QuickActions({ language, onAction, disabled, locationState, locationCity }: QuickActionsProps) {
+  const isHindi = language === "hi";
+  const loc = locationCity || locationState || "";
+  const hasLoc = !!loc;
 
-const ACTIONS_EN = [
-  { label: "Check Price", icon: "💰", query: "What is the current soyabean price?" },
-  { label: "Best Mandi", icon: "📍", query: "Which mandi has the best wheat price? I have 20 quintals." },
-  { label: "Sell or Hold?", icon: "⏳", query: "Should I sell my soyabean now or wait a few days?" },
-  { label: "Mandi Prices", icon: "🏪", query: "Show all commodity prices at Indore mandi" },
-];
-
-export default function QuickActions({ language, onAction, disabled }: QuickActionsProps) {
-  const actions = language === "hi" ? ACTIONS_HI : ACTIONS_EN;
+  const actions = isHindi
+    ? [
+        { label: "भाव देखो", icon: "💰", query: hasLoc ? `सोयाबीन का भाव बताओ ${loc} में` : "सोयाबीन का भाव बताओ" },
+        { label: "कहाँ बेचूं?", icon: "📍", query: hasLoc ? `${loc} के पास 20 क्विंटल गेहूं बेचने के लिए सबसे अच्छी मंडी?` : "मेरे पास 20 क्विंटल गेहूं है, सबसे अच्छी मंडी कौन सी है?" },
+        { label: "बेचूं या रुकूं?", icon: "⏳", query: "क्या अभी सोयाबीन बेचना चाहिए या कुछ दिन रुकना चाहिए?" },
+        { label: "मंडी के भाव", icon: "🏪", query: hasLoc ? `${loc} की मंडी में सब फसलों के भाव बताओ` : "मेरे पास की मंडी में सब फसलों के भाव बताओ" },
+      ]
+    : [
+        { label: "Check Price", icon: "💰", query: hasLoc ? `What is the current soyabean price in ${loc}?` : "What is the current soyabean price?" },
+        { label: "Best Mandi", icon: "📍", query: hasLoc ? `Which mandi near ${loc} has the best wheat price? I have 20 quintals.` : "Which mandi has the best wheat price? I have 20 quintals." },
+        { label: "Sell or Hold?", icon: "⏳", query: "Should I sell my soyabean now or wait a few days?" },
+        { label: "Mandi Prices", icon: "🏪", query: hasLoc ? `Show all commodity prices at ${loc} mandi` : "Show all commodity prices at the nearest mandi" },
+      ];
 
   return (
     <div className="flex flex-wrap gap-2 px-4 py-3">

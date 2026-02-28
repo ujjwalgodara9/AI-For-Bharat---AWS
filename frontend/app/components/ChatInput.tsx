@@ -14,6 +14,7 @@ export default function ChatInput({ onSend, disabled, language }: ChatInputProps
   const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const voiceSupported = typeof window !== "undefined" && isVoiceSupported();
+  const isHindi = language === "hi";
 
   useEffect(() => {
     if (inputRef.current) {
@@ -62,6 +63,24 @@ export default function ChatInput({ onSend, disabled, language }: ChatInputProps
 
   return (
     <div className="border-t border-gray-200 bg-white px-3 py-2">
+      {/* Voice hint when input is empty */}
+      {voiceSupported && !input && !disabled && (
+        <div className="text-center mb-1.5">
+          <button
+            onClick={handleVoice}
+            className={`text-xs px-3 py-1 rounded-full transition-all ${
+              isListening
+                ? "bg-red-50 text-red-600 font-medium"
+                : "text-gray-400 hover:text-[#2d6a4f] hover:bg-green-50"
+            }`}
+          >
+            {isListening
+              ? (isHindi ? "🎤 सुन रहे हैं... (रोकने के लिए दबाएं)" : "🎤 Listening... (tap to stop)")
+              : (isHindi ? "🎤 हिंदी में बोलकर पूछें" : "🎤 Tap to speak in Hindi")}
+          </button>
+        </div>
+      )}
+
       <div className="flex items-end gap-2 max-w-3xl mx-auto">
         {/* Voice button */}
         {voiceSupported && (
@@ -70,12 +89,12 @@ export default function ChatInput({ onSend, disabled, language }: ChatInputProps
             disabled={disabled}
             className={`relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
               isListening
-                ? "bg-red-500 text-white voice-pulse"
-                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                ? "bg-red-500 text-white voice-pulse shadow-lg shadow-red-200"
+                : "bg-[#2d6a4f]/10 text-[#2d6a4f] hover:bg-[#2d6a4f]/20"
             } disabled:opacity-50`}
-            title={language === "hi" ? "बोलकर पूछें" : "Speak your query"}
+            title={isHindi ? "बोलकर पूछें" : "Speak your query"}
           >
-            🎤
+            <span className="text-lg">🎤</span>
           </button>
         )}
 
@@ -87,9 +106,9 @@ export default function ChatInput({ onSend, disabled, language }: ChatInputProps
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={
-            language === "hi"
-              ? "अपना सवाल पूछें... (जैसे: सोयाबीन का भाव बताओ)"
-              : "Ask your question... (e.g., wheat price in Indore)"
+            isHindi
+              ? "अपना सवाल पूछें..."
+              : "Ask your question..."
           }
           rows={1}
           className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 text-[15px] focus:outline-none focus:border-[#2d6a4f] focus:ring-1 focus:ring-[#2d6a4f]/20 disabled:opacity-50 bg-gray-50"

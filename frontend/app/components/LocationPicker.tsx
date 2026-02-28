@@ -129,6 +129,8 @@ export default function LocationPicker({
   onSelectLocation,
 }: LocationPickerProps) {
   const [selectedState, setSelectedState] = useState("");
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState("");
   const isHindi = language === "hi";
 
   if (!isOpen) return null;
@@ -151,34 +153,58 @@ export default function LocationPicker({
         {/* GPS option */}
         <button
           onClick={() => {
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  onSelectLocation({
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude,
-                    label: isHindi ? "GPS लोकेशन" : "GPS Location",
-                    state: "",
-                  });
-                  onClose();
-                },
-                () => alert(isHindi ? "GPS उपलब्ध नहीं है" : "GPS not available"),
-                { enableHighAccuracy: true, timeout: 10000 }
-              );
+            if (!navigator.geolocation) {
+              setGpsError(isHindi ? "GPS इस डिवाइस पर उपलब्ध नहीं है" : "GPS not available on this device");
+              return;
             }
+            setGpsLoading(true);
+            setGpsError("");
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                setGpsLoading(false);
+                onSelectLocation({
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                  label: isHindi ? "Live GPS" : "Live GPS",
+                  state: "",
+                });
+                onClose();
+              },
+              (err) => {
+                setGpsLoading(false);
+                if (err.code === 1) {
+                  setGpsError(isHindi
+                    ? "GPS की अनुमति नहीं दी गई। कृपया ब्राउज़र सेटिंग्स में लोकेशन चालू करें, या नीचे से अपना राज्य/शहर चुनें।"
+                    : "Location permission denied. Please enable location in browser settings, or select your state/city below.");
+                } else {
+                  setGpsError(isHindi
+                    ? "GPS से लोकेशन नहीं मिल सका। कृपया नीचे से अपना राज्य/शहर चुनें।"
+                    : "Could not get GPS location. Please select your state/city below.");
+                }
+              },
+              { enableHighAccuracy: true, timeout: 15000 }
+            );
           }}
-          className="w-full px-4 py-3 flex items-center gap-3 border-b hover:bg-green-50 transition-colors"
+          disabled={gpsLoading}
+          className="w-full px-4 py-3 flex items-center gap-3 border-b hover:bg-green-50 transition-colors disabled:opacity-60"
         >
-          <span className="text-2xl">📡</span>
+          <span className="text-2xl">{gpsLoading ? "..." : "📡"}</span>
           <div className="text-left">
             <p className="font-semibold text-[#2d6a4f]">
-              {isHindi ? "GPS से पता लगाएं" : "Detect via GPS"}
+              {gpsLoading
+                ? (isHindi ? "GPS खोज रहे हैं..." : "Detecting GPS...")
+                : (isHindi ? "Live Location (GPS)" : "Live Location (GPS)")}
             </p>
             <p className="text-xs text-gray-500">
-              {isHindi ? "अपना सटीक स्थान उपयोग करें" : "Use your exact location"}
+              {isHindi ? "अपना सटीक स्थान उपयोग करें" : "Use your exact current location"}
             </p>
           </div>
         </button>
+        {gpsError && (
+          <div className="px-4 py-2 bg-yellow-50 border-b border-yellow-100">
+            <p className="text-xs text-yellow-700">{gpsError}</p>
+          </div>
+        )}
 
         {/* State/City list */}
         <div className="overflow-y-auto max-h-[60vh] p-2">
