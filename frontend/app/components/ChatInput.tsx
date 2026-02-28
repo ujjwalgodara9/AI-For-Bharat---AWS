@@ -12,9 +12,14 @@ interface ChatInputProps {
 export default function ChatInput({ onSend, disabled, language }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const voiceSupported = typeof window !== "undefined" && isVoiceSupported();
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const isHindi = language === "hi";
+
+  useEffect(() => {
+    setVoiceSupported(isVoiceSupported());
+  }, []);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -47,24 +52,38 @@ export default function ChatInput({ onSend, disabled, language }: ChatInputProps
       return;
     }
 
+    setVoiceError("");
     setIsListening(true);
     startListening(
       language,
       (transcript) => {
         setInput((prev) => (prev ? prev + " " + transcript : transcript));
         setIsListening(false);
+        setVoiceError("");
       },
       (error) => {
         console.error(error);
         setIsListening(false);
+        setVoiceError(error);
+        // Auto-clear error after 4 seconds
+        setTimeout(() => setVoiceError(""), 4000);
       }
     );
   };
 
   return (
     <div className="border-t border-gray-200 bg-white px-3 py-2">
+      {/* Voice error message */}
+      {voiceError && (
+        <div className="text-center mb-1.5">
+          <span className="text-xs text-red-500 bg-red-50 px-3 py-1 rounded-full">
+            {voiceError}
+          </span>
+        </div>
+      )}
+
       {/* Voice hint when input is empty */}
-      {voiceSupported && !input && !disabled && (
+      {voiceSupported && !input && !disabled && !voiceError && (
         <div className="text-center mb-1.5">
           <button
             onClick={handleVoice}

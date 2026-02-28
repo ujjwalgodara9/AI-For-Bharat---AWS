@@ -159,8 +159,8 @@ export default function Home() {
         )}
       </div>
 
-      {/* Quick actions (show when few messages) */}
-      {messages.length > 0 && messages.length <= 4 && !isLoading && (
+      {/* Quick actions — always available after conversation starts */}
+      {messages.length > 0 && !isLoading && (
         <QuickActions
           language={language}
           onAction={sendMessage}
