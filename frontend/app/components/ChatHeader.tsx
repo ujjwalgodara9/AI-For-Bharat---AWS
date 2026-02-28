@@ -3,9 +3,16 @@
 interface ChatHeaderProps {
   language: string;
   onLanguageChange: (lang: string) => void;
+  locationStatus?: "pending" | "granted" | "denied" | "unavailable";
+  onRequestLocation?: () => void;
 }
 
-export default function ChatHeader({ language, onLanguageChange }: ChatHeaderProps) {
+export default function ChatHeader({
+  language,
+  onLanguageChange,
+  locationStatus = "pending",
+  onRequestLocation,
+}: ChatHeaderProps) {
   return (
     <header className="bg-gradient-to-r from-[#2d6a4f] to-[#40916c] text-white px-4 py-3 flex items-center justify-between shadow-lg">
       <div className="flex items-center gap-3">
@@ -15,12 +22,50 @@ export default function ChatHeader({ language, onLanguageChange }: ChatHeaderPro
         <div>
           <h1 className="text-lg font-bold leading-tight">MandiMitra</h1>
           <p className="text-xs text-green-200 leading-tight">
-            {language === "hi" ? "किसान का साथी — AI मंडी सहायक" : "Farmer's Companion — AI Mandi Assistant"}
+            {language === "hi"
+              ? "किसान का साथी — AI मंडी सहायक"
+              : "Farmer's Companion — AI Mandi Assistant"}
           </p>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Location indicator */}
+        <button
+          onClick={locationStatus !== "granted" ? onRequestLocation : undefined}
+          className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
+            locationStatus === "granted"
+              ? "bg-white/15 text-green-200"
+              : "bg-white/20 hover:bg-white/30 text-yellow-200"
+          }`}
+          title={
+            locationStatus === "granted"
+              ? language === "hi"
+                ? "लोकेशन चालू"
+                : "Location active"
+              : language === "hi"
+              ? "लोकेशन दें"
+              : "Share location"
+          }
+        >
+          <span className="text-sm">
+            {locationStatus === "granted"
+              ? "📍"
+              : locationStatus === "denied"
+              ? "📍"
+              : "📍"}
+          </span>
+          <span>
+            {locationStatus === "granted"
+              ? language === "hi"
+                ? "लोकेशन"
+                : "Located"
+              : language === "hi"
+              ? "लोकेशन दें"
+              : "Location"}
+          </span>
+        </button>
+
         {/* Language Toggle */}
         <button
           onClick={() => onLanguageChange(language === "hi" ? "en" : "hi")}

@@ -53,6 +53,8 @@ def handler(event, context):
     user_message = body.get("message", "").strip()
     language = body.get("language", "hi")  # Default to Hindi
     session_id = body.get("session_id", str(uuid.uuid4()))
+    user_lat = body.get("latitude")
+    user_lon = body.get("longitude")
 
     if not user_message:
         return api_response(400, {"error": "Message is required"})
@@ -70,7 +72,8 @@ def handler(event, context):
     try:
         # Invoke Bedrock Agent
         response_text, agent_traces = invoke_agent(
-            user_message, session_id, language, trace
+            user_message, session_id, language, trace,
+            user_lat=user_lat, user_lon=user_lon,
         )
 
         elapsed = round(time.time() - start_time, 2)
@@ -83,13 +86,26 @@ def handler(event, context):
             )
             langfuse.flush()
 
-        return api_response(200, {
+        result_body = {
             "response": response_text,
             "session_id": session_id,
             "language": language,
             "agent_trace": agent_traces,
             "latency_seconds": elapsed,
-        })
+        }
+        logger.info(f"Result body response field length: {len(result_body['response'])}")
+        body_str = json.dumps(result_body, ensure_ascii=True)
+        logger.info(f"JSON body length: {len(body_str)}")
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json; charset=utf-8",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type,Authorization",
+                "Access-Control-Allow-Methods": "POST,OPTIONS",
+            },
+            "body": body_str,
+        }
 
     except Exception as e:
         logger.error(f"Agent invocation failed: {str(e)}", exc_info=True)
@@ -102,16 +118,21 @@ def handler(event, context):
         })
 
 
-def invoke_agent(message: str, session_id: str, language: str, trace=None) -> tuple:
+def invoke_agent(message: str, session_id: str, language: str, trace=None,
+                  user_lat=None, user_lon=None) -> tuple:
     """Invoke Bedrock Agent and collect response + traces."""
     response_parts = []
+    answer_from_trace = []
     agent_traces = []
 
-    # Add language instruction prefix if Hindi
+    # Build augmented message with language and location context
+    parts = []
     if language == "hi":
-        augmented_message = f"[Respond in Hindi] {message}"
-    else:
-        augmented_message = message
+        parts.append("[Respond in Hindi]")
+    if user_lat is not None and user_lon is not None:
+        parts.append(f"[User GPS location: latitude={user_lat}, longitude={user_lon}. Use this for nearby mandi lookups and transport cost calculations.]")
+    parts.append(message)
+    augmented_message = " ".join(parts)
 
     try:
         response = bedrock_agent_runtime.invoke_agent(
@@ -129,8 +150,10 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None) -> tu
             if "chunk" in event:
                 chunk_data = event["chunk"]
                 if "bytes" in chunk_data:
-                    text = chunk_data["bytes"].decode("utf-8")
-                    response_parts.append(text)
+                    raw_bytes = chunk_data["bytes"]
+                    if raw_bytes:
+                        text = raw_bytes.decode("utf-8") if isinstance(raw_bytes, bytes) else str(raw_bytes)
+                        response_parts.append(text)
 
             # Collect agent trace information
             if "trace" in event:
@@ -148,11 +171,71 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None) -> tu
                             metadata=trace_entry.get("metadata", {}),
                         )
 
+                # Also try to extract answer from model invocation output
+                orch = trace_data.get("orchestrationTrace", {})
+                if "modelInvocationOutput" in orch:
+                    mio = orch["modelInvocationOutput"]
+                    raw = mio.get("rawResponse", {}).get("content", "")
+                    raw_str = str(raw)
+                    if "<answer>" in raw_str:
+                        try:
+                            # The content may be nested JSON — try to extract text field first
+                            text_to_search = raw_str
+                            try:
+                                parsed = json.loads(raw_str) if isinstance(raw, str) else raw
+                                if isinstance(parsed, dict):
+                                    texts = parsed.get("output", {}).get("message", {}).get("content", [])
+                                    if texts:
+                                        text_to_search = texts[0].get("text", raw_str)
+                            except (json.JSONDecodeError, TypeError, KeyError, IndexError):
+                                pass
+
+                            if "<answer>" in text_to_search:
+                                start = text_to_search.index("<answer>") + len("<answer>")
+                                end = text_to_search.index("</answer>") if "</answer>" in text_to_search else len(text_to_search)
+                                answer = text_to_search[start:end].strip()
+                                if answer and len(answer) > 5:
+                                    answer_from_trace.append(answer)
+                                    logger.info(f"Extracted answer from trace: {len(answer)} chars")
+                        except Exception as ex:
+                            logger.warning(f"Answer extraction error: {ex}")
+
     except Exception as e:
         logger.error(f"Bedrock agent invocation error: {e}")
         raise
 
+    logger.info(f"Response parts count: {len(response_parts)}, sizes: {[len(p) for p in response_parts]}")
     full_response = "".join(response_parts)
+    logger.info(f"Full response length: {len(full_response)}")
+
+    # Fallback 1: if chunk bytes were empty, use answer extracted from traces
+    if not full_response and answer_from_trace:
+        full_response = answer_from_trace[-1]  # Use the last (final) answer
+        logger.info(f"Using answer from trace fallback: {len(full_response)} chars")
+
+    # Fallback 2: retry WITHOUT traces (sometimes enableTrace causes empty chunks)
+    if not full_response:
+        logger.info("Response empty after trace fallback, retrying without traces...")
+        try:
+            retry_response = bedrock_agent_runtime.invoke_agent(
+                agentId=AGENT_ID,
+                agentAliasId=AGENT_ALIAS_ID,
+                sessionId=session_id + "-retry",
+                inputText=augmented_message,
+                enableTrace=False,
+            )
+            retry_parts = []
+            for event in retry_response.get("completion", []):
+                if "chunk" in event and "bytes" in event["chunk"]:
+                    raw_bytes = event["chunk"]["bytes"]
+                    if raw_bytes:
+                        retry_parts.append(raw_bytes.decode("utf-8") if isinstance(raw_bytes, bytes) else str(raw_bytes))
+            if retry_parts:
+                full_response = "".join(retry_parts)
+                logger.info(f"Retry without traces succeeded: {len(full_response)} chars")
+        except Exception as retry_err:
+            logger.error(f"Retry failed: {retry_err}")
+
     return full_response, agent_traces
 
 
@@ -191,6 +274,16 @@ def extract_trace(trace_data: dict) -> dict:
                 "output": obs.get("actionGroupInvocationOutput", {}).get("text", ""),
             }
 
+        if "modelInvocationOutput" in orch:
+            mio = orch["modelInvocationOutput"]
+            raw_content = mio.get("rawResponse", {}).get("content", "")
+            if raw_content and "<answer>" in str(raw_content):
+                trace_entry = {
+                    "type": "model_output",
+                    "step": "Model Response",
+                    "output": str(raw_content),
+                }
+
         if "modelInvocationInput" in orch:
             model_input = orch["modelInvocationInput"]
             trace_entry["metadata"] = {
@@ -221,5 +314,5 @@ def api_response(status_code: int, body: dict) -> dict:
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "POST,OPTIONS",
         },
-        "body": json.dumps(body, ensure_ascii=False),
+        "body": json.dumps(body, ensure_ascii=True),
     }

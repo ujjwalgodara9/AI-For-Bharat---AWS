@@ -153,4 +153,4 @@ Covers 2000+ mandis, 300+ commodities, updated daily.
 
 ---
 
-*Built with Amazon Bedrock, Claude AI, and a lot of chai. ☕*
+*Built with Amazon Bedrock Agents, Amazon Nova Pro, and a lot of chai. ☕*
