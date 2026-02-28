@@ -63,7 +63,8 @@ def query_prices(commodity: str, state: str, mandi: str = None, days: int = 7) -
 
 
 def query_mandi_prices(mandi: str, days: int = 7) -> list:
-    """Query all commodity prices for a specific mandi using GSI-1."""
+    """Query all commodity prices for a specific mandi using GSI-1.
+    Falls back to all historical data if no recent data found."""
     end_date = datetime.utcnow().strftime("%Y-%m-%d")
     start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
 
@@ -74,7 +75,19 @@ def query_mandi_prices(mandi: str, days: int = 7) -> list:
             f"{end_date}#~"
         )
     )
-    return [_decimal_to_float(item) for item in response.get("Items", [])]
+    items = response.get("Items", [])
+
+    # Fallback: if no recent data, get latest available
+    if not items and days > 0:
+        response = table.query(
+            IndexName="MANDI-INDEX",
+            KeyConditionExpression=Key("mandi_name").eq(mandi.upper()),
+            ScanIndexForward=False,
+            Limit=50,
+        )
+        items = response.get("Items", [])
+
+    return [_decimal_to_float(item) for item in items]
 
 
 def get_nearby_mandis(lat: float, lon: float, radius_km: float, commodity: str = None) -> list:
@@ -208,6 +221,82 @@ def get_sell_recommendation_data(commodity: str, state: str, lat: float, lon: fl
         "storage_cost_per_day": storage_cost,
         "storage_available": storage_available,
     }
+
+
+def list_available_commodities(state: str = None) -> list:
+    """List all unique commodities available in the database, optionally filtered by state."""
+    commodities = set()
+    scan_kwargs = {"ProjectionExpression": "commodity, #s",
+                   "ExpressionAttributeNames": {"#s": "state"}}
+
+    if state:
+        scan_kwargs["FilterExpression"] = Attr("state").eq(state)
+
+    response = table.scan(**scan_kwargs)
+    for item in response.get("Items", []):
+        commodities.add(item.get("commodity", ""))
+
+    # Handle pagination
+    while "LastEvaluatedKey" in response:
+        scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+        response = table.scan(**scan_kwargs)
+        for item in response.get("Items", []):
+            commodities.add(item.get("commodity", ""))
+
+    return sorted([c for c in commodities if c])
+
+
+def list_available_mandis(state: str = None) -> list:
+    """List all unique mandis available in the database, optionally filtered by state."""
+    mandis = {}  # mandi_name -> {state, district}
+    scan_kwargs = {"ProjectionExpression": "mandi_name, #s, district",
+                   "ExpressionAttributeNames": {"#s": "state"}}
+
+    if state:
+        scan_kwargs["FilterExpression"] = Attr("state").eq(state)
+
+    response = table.scan(**scan_kwargs)
+    for item in response.get("Items", []):
+        name = item.get("mandi_name", "")
+        if name and name not in mandis:
+            mandis[name] = {
+                "mandi": name,
+                "state": item.get("state", ""),
+                "district": item.get("district", ""),
+            }
+
+    while "LastEvaluatedKey" in response:
+        scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+        response = table.scan(**scan_kwargs)
+        for item in response.get("Items", []):
+            name = item.get("mandi_name", "")
+            if name and name not in mandis:
+                mandis[name] = {
+                    "mandi": name,
+                    "state": item.get("state", ""),
+                    "district": item.get("district", ""),
+                }
+
+    return sorted(mandis.values(), key=lambda x: (x["state"], x["mandi"]))
+
+
+def list_available_states() -> list:
+    """List all unique states available in the database."""
+    states = set()
+    scan_kwargs = {"ProjectionExpression": "#s",
+                   "ExpressionAttributeNames": {"#s": "state"}}
+
+    response = table.scan(**scan_kwargs)
+    for item in response.get("Items", []):
+        states.add(item.get("state", ""))
+
+    while "LastEvaluatedKey" in response:
+        scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+        response = table.scan(**scan_kwargs)
+        for item in response.get("Items", []):
+            states.add(item.get("state", ""))
+
+    return sorted([s for s in states if s])
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

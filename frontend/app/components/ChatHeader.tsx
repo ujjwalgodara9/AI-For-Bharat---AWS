@@ -4,6 +4,7 @@ interface ChatHeaderProps {
   language: string;
   onLanguageChange: (lang: string) => void;
   locationStatus?: "pending" | "granted" | "denied" | "unavailable";
+  locationLabel?: string;
   onRequestLocation?: () => void;
 }
 
@@ -11,8 +12,11 @@ export default function ChatHeader({
   language,
   onLanguageChange,
   locationStatus = "pending",
+  locationLabel,
   onRequestLocation,
 }: ChatHeaderProps) {
+  const isHindi = language === "hi";
+
   return (
     <header className="bg-gradient-to-r from-[#2d6a4f] to-[#40916c] text-white px-4 py-3 flex items-center justify-between shadow-lg">
       <div className="flex items-center gap-3">
@@ -22,7 +26,7 @@ export default function ChatHeader({
         <div>
           <h1 className="text-lg font-bold leading-tight">MandiMitra</h1>
           <p className="text-xs text-green-200 leading-tight">
-            {language === "hi"
+            {isHindi
               ? "किसान का साथी — AI मंडी सहायक"
               : "Farmer's Companion — AI Mandi Assistant"}
           </p>
@@ -30,37 +34,33 @@ export default function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Location indicator */}
+        {/* Location indicator — always clickable to change */}
         <button
-          onClick={locationStatus !== "granted" ? onRequestLocation : undefined}
+          onClick={onRequestLocation}
           className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
             locationStatus === "granted"
-              ? "bg-white/15 text-green-200"
+              ? "bg-white/15 text-green-200 hover:bg-white/25"
               : "bg-white/20 hover:bg-white/30 text-yellow-200"
           }`}
           title={
             locationStatus === "granted"
-              ? language === "hi"
-                ? "लोकेशन चालू"
-                : "Location active"
-              : language === "hi"
-              ? "लोकेशन दें"
-              : "Share location"
+              ? isHindi
+                ? "लोकेशन बदलें"
+                : "Change location"
+              : isHindi
+              ? "लोकेशन चुनें"
+              : "Select location"
           }
         >
-          <span className="text-sm">
-            {locationStatus === "granted"
-              ? "📍"
-              : locationStatus === "denied"
-              ? "📍"
-              : "📍"}
-          </span>
-          <span>
-            {locationStatus === "granted"
-              ? language === "hi"
-                ? "लोकेशन"
-                : "Located"
-              : language === "hi"
+          <span className="text-sm">📍</span>
+          <span className="max-w-[80px] truncate">
+            {locationStatus === "granted" && locationLabel
+              ? locationLabel.split(",")[0]
+              : locationStatus === "granted"
+              ? isHindi
+                ? "GPS"
+                : "GPS"
+              : isHindi
               ? "लोकेशन दें"
               : "Location"}
           </span>
