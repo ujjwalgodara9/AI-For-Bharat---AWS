@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from shared.dynamodb_utils import (
-    query_prices, get_price_trend, get_msp,
+    query_prices, query_mandi_prices, get_price_trend, get_msp,
     get_nearby_mandis, calculate_net_realization,
     get_sell_recommendation_data
 )
@@ -147,6 +147,33 @@ def handle_agent_action(event):
                 }
             else:
                 result = {"error": f"Mandi '{dest_mandi}' coordinates not found"}
+
+        elif function == "get_all_prices_at_mandi":
+            mandi = params.get("mandi", "")
+            days = int(params.get("days", "7"))
+
+            prices = query_mandi_prices(mandi, days)
+
+            # Group by commodity
+            by_commodity = {}
+            for p in prices:
+                comm = p.get("commodity", "Unknown")
+                if comm not in by_commodity or p.get("modal_price", 0) > by_commodity[comm].get("modal_price", 0):
+                    by_commodity[comm] = {
+                        "commodity": comm,
+                        "modal_price": p.get("modal_price"),
+                        "min_price": p.get("min_price"),
+                        "max_price": p.get("max_price"),
+                        "arrival_date": p.get("arrival_date"),
+                        "variety": p.get("variety", ""),
+                    }
+
+            result = {
+                "mandi": mandi.upper(),
+                "commodities_count": len(by_commodity),
+                "prices": list(by_commodity.values()),
+                "total_records": len(prices),
+            }
 
         elif function == "get_sell_recommendation":
             commodity = params.get("commodity", "")

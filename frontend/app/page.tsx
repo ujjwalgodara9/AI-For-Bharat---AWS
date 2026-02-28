@@ -18,6 +18,14 @@ export default function Home() {
   const [sessionId] = useState(
     () => `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   );
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<
+    "pending" | "granted" | "denied" | "unavailable"
+  >("pending");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -27,6 +35,28 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
+
+  // Request GPS location on mount
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationStatus("unavailable");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setLocationStatus("granted");
+      },
+      () => {
+        setLocationStatus("denied");
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    );
+  }, []);
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -45,15 +75,20 @@ export default function Home() {
       let response: ChatResponse;
 
       if (API_BASE) {
-        // Real API call
+        // Real API call — include location if available
+        const payload: Record<string, unknown> = {
+          message: content,
+          language,
+          session_id: sessionId,
+        };
+        if (userLocation) {
+          payload.latitude = userLocation.latitude;
+          payload.longitude = userLocation.longitude;
+        }
         const res = await fetch(`${API_BASE}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: content,
-            language,
-            session_id: sessionId,
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -92,7 +127,27 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen max-w-lg mx-auto bg-[#f0f7f4] shadow-2xl">
       {/* Header */}
-      <ChatHeader language={language} onLanguageChange={setLanguage} />
+      <ChatHeader
+        language={language}
+        onLanguageChange={setLanguage}
+        locationStatus={locationStatus}
+        onRequestLocation={() => {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                setUserLocation({
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                  accuracy: pos.coords.accuracy,
+                });
+                setLocationStatus("granted");
+              },
+              () => setLocationStatus("denied"),
+              { enableHighAccuracy: true, timeout: 10000 }
+            );
+          }
+        }}
+      />
 
       {/* Chat area */}
       <div className="flex-1 overflow-y-auto chat-scroll">

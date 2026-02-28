@@ -17,11 +17,17 @@ table = dynamodb.Table(os.environ.get("PRICE_TABLE", PRICE_TABLE_NAME))
 
 
 def query_prices(commodity: str, state: str, mandi: str = None, days: int = 7) -> list:
-    """Query mandi prices for a commodity in a state, optionally filtered by mandi."""
+    """Query mandi prices for a commodity in a state, optionally filtered by mandi.
+    If no recent data found, automatically falls back to searching all historical data.
+    """
     end_date = datetime.utcnow().strftime("%Y-%m-%d")
-    start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    if days <= 0:
+        start_date = "2000-01-01"  # Fetch all historical data
+    else:
+        start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
 
-    pk = f"{commodity.upper()}#{state.upper()}"
+    state_clean = state.upper().replace(" ", "_")
+    pk = f"{commodity.upper()}#{state_clean}"
 
     if mandi:
         # Query specific mandi within date range
@@ -41,6 +47,17 @@ def query_prices(commodity: str, state: str, mandi: str = None, days: int = 7) -
         )
 
     items = response.get("Items", [])
+
+    # Fallback: if no recent data found, search all available data
+    if not items and days > 0:
+        fallback_pk = f"{commodity.strip().upper()}#{state.strip().upper().replace(' ', '_')}"
+        fallback_response = table.query(
+            KeyConditionExpression=Key("PK").eq(fallback_pk),
+            ScanIndexForward=False,  # newest first
+            Limit=20,
+        )
+        items = fallback_response.get("Items", [])
+
     # Convert Decimal to float for JSON serialization
     return [_decimal_to_float(item) for item in items]
 
@@ -134,8 +151,15 @@ def get_price_trend(commodity: str, state: str, mandi: str, days: int = 30) -> d
 
 
 def get_msp(commodity: str) -> dict:
-    """Get MSP for a commodity."""
+    """Get MSP for a commodity (case-insensitive)."""
+    # Try exact match first, then case-insensitive
     msp = MSP_RATES.get(commodity)
+    if msp is None:
+        for key, val in MSP_RATES.items():
+            if key.lower() == commodity.lower():
+                msp = val
+                commodity = key  # Use canonical name
+                break
     return {
         "commodity": commodity,
         "msp": msp,

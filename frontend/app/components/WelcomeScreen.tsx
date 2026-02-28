@@ -84,7 +84,7 @@ export default function WelcomeScreen({ language, onQuickAction }: WelcomeScreen
 
       {/* Powered by */}
       <p className="text-[10px] text-gray-300 mt-4">
-        Powered by Amazon Bedrock Agents + Claude AI
+        Powered by Amazon Bedrock Agents + Amazon Nova AI
       </p>
     </div>
   );
