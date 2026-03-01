@@ -55,8 +55,8 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
       case "sellHold":
         onQuickAction(
           isHindi
-            ? `क्या अभी ${name} बेचना चाहिए या कुछ दिन रुकना चाहिए? शेल्फ लाइफ और कितने दिन रुक सकते हैं यह भी बताओ।`
-            : `Should I sell my ${name} now or wait? Also tell me the shelf life and recommended hold time.`
+            ? `क्या अभी ${name} बेचना चाहिए या कुछ दिन रुकना चाहिए? पिछले 7 दिन का भाव, कल का अनुमानित भाव, मौसम का असर, शेल्फ लाइफ, भंडारण के तरीके, और गोदाम में रखना चाहिए या नहीं — सब बताओ।`
+            : `Should I sell my ${name} now or wait? Give me 7-day price history, tomorrow's predicted price, weather impact on storage, shelf life, storage tips, warehouse advice, and full reasoning.`
         );
         break;
       case "priceBrief":
@@ -154,7 +154,7 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
         <FeatureCard
           icon="⏳"
           title={isHindi ? "बेचें या रुकें" : "Sell or Hold"}
-          desc={isHindi ? "शेल्फ लाइफ + AI सलाह" : "Shelf life + AI advice"}
+          desc={isHindi ? "भाव अनुमान + मौसम + भंडारण" : "Price prediction + weather + storage"}
           onClick={() => setActivePicker("sellHold")}
           active={activePicker === "sellHold"}
         />

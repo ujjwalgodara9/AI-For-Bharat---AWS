@@ -239,8 +239,16 @@ def handle_agent_action(event):
             quantity = float(params.get("quantity_qtl", "10"))
             storage = params.get("storage_available", "false").lower() == "true"
 
+            # Fetch weather data to integrate into sell recommendation
+            weather_data = None
+            try:
+                weather_data = get_weather_advisory("", lat, lon)
+            except Exception:
+                pass  # Weather is optional — sell recommendation works without it
+
             result = get_sell_recommendation_data(
-                commodity, state, lat, lon, quantity, storage
+                commodity, state, lat, lon, quantity, storage,
+                weather_data=weather_data
             )
 
         elif function == "get_mandi_profile":
