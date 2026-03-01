@@ -652,8 +652,8 @@ User taps the microphone button in the `ChatInput` component, or taps the "Hindi
 
 ### Available Locations
 
-11 states with 3-8 cities each, covering major agricultural regions:
-Madhya Pradesh, Rajasthan, Maharashtra, Uttar Pradesh, Gujarat, Punjab, Karnataka, Tamil Nadu, West Bengal, Bihar, Haryana.
+13 states with 2-8 cities each, covering major agricultural regions:
+Madhya Pradesh, Rajasthan, Maharashtra, Uttar Pradesh, Gujarat, Punjab, Haryana, Karnataka, Tamil Nadu, Andhra Pradesh, West Bengal, Bihar, Chhattisgarh.
 
 ---
 

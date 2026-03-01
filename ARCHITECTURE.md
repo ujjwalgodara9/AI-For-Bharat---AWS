@@ -11,6 +11,13 @@
                                        │ HTTPS + GPS coords
                                        ▼
                     ┌─────────────────────────────────────────────┐
+                    │      CloudFront (HTTPS CDN)                 │
+                    │      d2mtfau3fvs243.cloudfront.net          │
+                    │      SSL/TLS → enables Voice + GPS APIs     │
+                    └──────────────────┬──────────────────────────┘
+                                       │
+                                       ▼
+                    ┌─────────────────────────────────────────────┐
                     │         S3 Static Website Hosting           │
                     │     Next.js 14 + Tailwind CSS (SSG)         │
                     │   mandimitra-frontend-471112620976           │
@@ -56,7 +63,7 @@
                     │    │  • MandiTools              │           │
                     │    │  • BrowseTools             │           │
                     │    │  • WeatherTools            │           │
-                    │    │  12 functions total         │           │
+                    │    │  13 functions total         │           │
                     │    └─────────────┬──────────────┘           │
                     │                  │                          │
                     │         ┌────────┴────────┐                │
@@ -174,7 +181,7 @@ hackathon/
 │   │   │   └── handler.py             # Price query + Bedrock Action Group Lambda
 │   │   │       - handle_api_request(): Direct GET /api/prices/{commodity}
 │   │   │       - handle_agent_action(): Bedrock Agent tool invocations
-│   │   │       - 12 functions across 4 action groups
+│   │   │       - 13 functions across 4 action groups
 │   │   │
 │   │   ├── data_ingestion/
 │   │   │   └── handler.py             # Data ingestion Lambda
@@ -228,6 +235,7 @@ hackathon/
 │
 ├── ARCHITECTURE.md                    # This file
 ├── DATA_INVENTORY.md                  # Data coverage details
+├── FLOWS.md                           # 13 detailed user flow walkthroughs
 ├── PLAN.md                            # 5-day execution plan
 ├── design.md                          # Detailed design document
 ├── requirements.md                    # Requirements specification
@@ -272,6 +280,7 @@ When a user queries a location (e.g., "Karnal"):
 | Resource | ID/Name | Purpose |
 |----------|---------|---------|
 | DynamoDB | MandiMitraPrices (4,467 items) | Price time-series data |
+| CloudFront | E1FOPZ17Q7P6CF (d2mtfau3fvs243.cloudfront.net) | HTTPS CDN — enables Voice + GPS |
 | S3 (frontend) | mandimitra-frontend-471112620976 | Static website + PWA |
 | S3 (deploy) | mandimitra-deployment-471112620976 | Lambda deployment packages |
 | Lambda | mandimitra-chat | Chat endpoint (invokes Bedrock Agent) |
@@ -346,8 +355,10 @@ When a user queries a location (e.g., "Karnal"):
 
 12. **Shelf life in sell advisory**: Sell/hold recommendations include commodity shelf life, recommended hold days, and storage cost estimates.
 
-13. **Data freshness awareness**: System tracks whether data is from today, yesterday, or older. Agent explicitly mentions date context in responses. Agmarknet mandis finalize data by 5:00 PM IST per DMI guidelines.
+13. **Data freshness awareness**: System tracks whether data is from today, yesterday, or older. Agent explicitly mentions date context in responses. Agmarknet mandis finalize data by 5:00 PM IST per DMI guidelines. Ingestion runs at 9:30 PM IST.
 
 14. **Data validation at ingestion**: Records with unrealistic prices (<₹1 or >₹5L), modal outside min-max range, or future dates are rejected.
 
 15. **GPS permission graceful degradation**: If browser GPS is denied, the picker auto-hides the GPS option and prompts manual state/city selection.
+
+16. **CloudFront for HTTPS**: S3 static hosting is HTTP-only. CloudFront distribution provides HTTPS (free tier: 1TB/month), which is required for Web Speech API (voice input) and Geolocation API (GPS). HTTP→HTTPS redirect enabled.

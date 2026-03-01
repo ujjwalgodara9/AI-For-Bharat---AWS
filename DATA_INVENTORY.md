@@ -118,7 +118,7 @@ Covers major mandis across all tracked states. Used for:
 - Fetches from Agmarknet API for all tracked commodities × states
 - Transforms to DynamoDB schema (PK/SK composite keys)
 - Batch writes using `batch_writer()`
-- Scheduled: Manual invocation (EventBridge schedule planned)
+- Scheduled: Daily at 9:30 PM IST (4:00 PM UTC) via EventBridge
 
 ## Weather Data
 

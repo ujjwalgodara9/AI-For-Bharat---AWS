@@ -103,7 +103,7 @@ MandiMitra also perfectly fits *"AI for Rural Innovation & Sustainable Systems"*
 │                         USER INTERFACE                                │
 │               Next.js 14 + Tailwind CSS (Mobile-First)               │
 │          WhatsApp-style Chat │ Price Cards │ Voice Input              │
-│                    Deployed on: AWS Amplify                           │
+│       Deployed on: S3 + CloudFront (HTTPS CDN)                       │
 └────────────────────────────┬──────────────────────────────────────────┘
                              │ HTTPS
                              ▼
@@ -148,7 +148,7 @@ MandiMitra also perfectly fits *"AI for Rural Innovation & Sustainable Systems"*
 │ per query        │
 └──────────────────┘
 
-DATA PIPELINE (runs daily at 6 AM IST):
+DATA PIPELINE (runs daily at 9:30 PM IST):
 ┌──────────┐    ┌────────────┐    ┌──────────────┐    ┌──────────┐
 │EventBridge│───→│ Lambda:    │───→│ Transform +  │───→│ DynamoDB │
 │ Schedule  │    │ fetch from │    │ compute MA,  │    │ batch    │
@@ -161,15 +161,16 @@ DATA PIPELINE (runs daily at 6 AM IST):
 | # | Service | Purpose | Why |
 |---|---------|---------|-----|
 | 1 | **Amazon Bedrock (Nova Pro)** | LLM reasoning for orchestrator agent | Core AI engine |
-| 2 | **Bedrock Agents** | Single orchestrator with 4 action groups, 12 functions | Agentic architecture |
+| 2 | **Bedrock Agents** | Single orchestrator with 4 action groups, 13 functions | Agentic architecture |
 | 3 | **Bedrock Guardrails** | Prompt-level guardrails (no price hallucination) | Responsible AI |
 | 4 | **DynamoDB** | Price time-series (4,467 items, 2 GSIs, PAY_PER_REQUEST) | Fast queries, auto-scale |
 | 5 | **Lambda** | 3 functions: chat, price-query, data-ingestion | Serverless, pay-per-use |
 | 6 | **API Gateway** | REST API (skwsw8qk22) with CORS | Frontend-backend bridge |
 | 7 | **S3** | Frontend hosting (static website) + deployment packages | Durable storage |
-| 8 | **CloudWatch** | Lambda logs, metrics | Monitoring |
-| 9 | **IAM** | MandiMitraLambdaRole + MandiMitraBedrockAgentRole | Security |
-| 10 | **Open-Meteo API** | 5-day weather forecast + agricultural advisory | Weather intelligence (external) |
+| 8 | **CloudFront** | HTTPS CDN for S3 frontend — enables Voice + GPS APIs | Secure delivery (free tier) |
+| 9 | **CloudWatch** | Lambda logs, metrics | Monitoring |
+| 10 | **IAM** | MandiMitraLambdaRole + MandiMitraBedrockAgentRole | Security |
+| 11 | **Open-Meteo API** | 5-day weather forecast + agricultural advisory | Weather intelligence (external) |
 
 ### Data Source: Government Agmarknet API
 
@@ -363,7 +364,7 @@ MandiMitra directly supports:
 | 2–3 PM | Frontend Dev | **UI Component Scaffold** | Create chat layout, message components, header, quick action buttons (empty shells) |
 | 3–5 PM | Backend Dev | **Run Initial Data Load** | Execute Lambda manually, verify 5000+ records in DynamoDB, debug any parsing issues |
 | 3–5 PM | Frontend Dev | **Chat Interface UI** | WhatsApp-style chat bubbles, input bar, send button, language toggle — no backend yet, use mock responses |
-| 5–6 PM | Lead | **EventBridge Setup** | Create schedule rule: daily 6 AM IST → trigger data ingestion Lambda |
+| 5–6 PM | Lead | **EventBridge Setup** | Create schedule rule: daily 9:30 PM IST → trigger data ingestion Lambda |
 | 6–7 PM | Lead | **LangFuse Account** | Sign up at langfuse.com, get API keys, install SDK in backend |
 
 **Day 1 Exit Criteria:**
@@ -522,7 +523,7 @@ MandiMitra directly supports:
 | Bedrock Agents have cold start latency | Use provisioned concurrency on Lambda; show "thinking..." animation |
 | Hindi responses are poor quality | Extensive prompt engineering; test with real Hindi queries; fallback to English |
 | $100 AWS credits run out | Monitor daily with billing alert at $80; use Haiku (cheaper) for simple lookups |
-| Working link goes down during evaluation | Use Amplify (auto-healing); set up CloudWatch alarm for 5xx errors |
+| Working link goes down during evaluation | S3 + CloudFront (highly durable); set up CloudWatch alarm for 5xx errors |
 | Team member unavailable | Each person's work is independent; code is on shared GitHub repo |
 | Agent hallucination | Bedrock Guardrails + always cite data source + timestamps |
 
@@ -535,7 +536,7 @@ MandiMitra directly supports:
 | 1 | **Project Summary** | 1-page write-up on dashboard | ⬜ |
 | 2 | **Demo Video** | YouTube/Drive link (4-5 min) | ⬜ |
 | 3 | **GitHub Repository** | Public/private repo link | ✅ (main branch, 2 commits) |
-| 4 | **Working Link** | S3 Static Website URL | ✅ (mandimitra-frontend-471112620976) |
+| 4 | **Working Link** | CloudFront HTTPS URL | ✅ (https://d2mtfau3fvs243.cloudfront.net) |
 | 5 | **Problem Statement** | Clear context on dashboard | ⬜ |
 
 ---

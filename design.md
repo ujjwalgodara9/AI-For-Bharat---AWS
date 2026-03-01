@@ -49,7 +49,7 @@ MandiMitra follows a **multi-agent agentic architecture** built on AWS services,
 
 **Architecture:**
 ```
-EventBridge (Daily 6 AM IST)
+EventBridge (Daily 9:30 PM IST)
     → Lambda: fetch_agmarknet_data()
         → Fetch CSV/API from data.gov.in Agmarknet
         → Parse and validate records
@@ -219,7 +219,7 @@ Input: commodity, quantity, location, storage_available (boolean),
 - **Framework:** Next.js 14 (SSG with `output: "export"` for S3 static hosting)
 - **Styling:** Tailwind CSS (mobile-first utilities)
 - **State Management:** React useState hooks
-- **Deployment:** S3 Static Website Hosting (mandimitra-frontend-471112620976)
+- **Deployment:** S3 Static Website + CloudFront HTTPS CDN (d2mtfau3fvs243.cloudfront.net)
 - **PWA:** manifest.json + service worker for offline/installable
 
 ### 3.2 UI Components
@@ -305,7 +305,7 @@ GET /api/weather-impact/{commodity}
 | Amazon Bedrock (Nova Pro — ~50K queries × 1K tokens avg) | ₹4,000 |
 | DynamoDB (on-demand, ~5GB storage, ~500K reads/month) | ₹800 |
 | Lambda (100K invocations, 256MB, avg 3s) | ₹200 |
-| S3 (10GB storage + transfer) | ₹100 |
+| S3 + CloudFront (10GB storage + CDN transfer) | ₹100 |
 | API Gateway (100K requests) | ₹300 |
 | CloudWatch (logs + metrics) | ₹200 |
 | Bedrock Knowledge Base (OpenSearch Serverless) | ₹3,000 |
