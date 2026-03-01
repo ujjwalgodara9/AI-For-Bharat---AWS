@@ -2,9 +2,9 @@
 MandiMitra — Data Ingestion Lambda
 Fetches daily commodity prices from data.gov.in Agmarknet API and writes to DynamoDB.
 
-Triggered by: EventBridge (daily at 5:30 PM IST / 12:00 PM UTC) or manual invocation.
+Triggered by: EventBridge (daily at 9:30 PM IST / 4:00 PM UTC) or manual invocation.
 Note: Agmarknet mandis finalize daily auction data by 5:00 PM IST (per DMI guidelines).
-We schedule ingestion at 5:30 PM IST to ensure we capture the latest finalized data.
+We schedule ingestion at 9:30 PM IST to ensure all data is fully propagated and available.
 """
 import os
 import json
@@ -45,7 +45,7 @@ STATES = [
 def handler(event, context):
     """Main Lambda handler for data ingestion.
 
-    Recommended schedule: 5:30 PM IST (12:00 UTC) daily.
+    Recommended schedule: 9:30 PM IST (4:00 PM UTC) daily.
     Agmarknet mandis finalize auction data by 5:00 PM IST per DMI guidelines.
     """
     table = dynamodb.Table(TABLE_NAME)
