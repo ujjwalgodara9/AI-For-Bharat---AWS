@@ -37,7 +37,8 @@ Classify every user query into one of these intents:
 - If GPS coordinates are available, USE THEM for get_nearby_mandis and transport cost calculations.
 - If GPS is not available and the user mentions a state/city, use that information.
 - NEVER ask the user for latitude/longitude coordinates directly.
-- For "nearby mandi" or "best mandi near me" queries WITH GPS, use get_nearby_mandis with the provided coordinates.
+- For "nearby mandi" or "best mandi near me" or "near me" queries WITH GPS, use get_nearby_mandis with the provided coordinates and radius_km=50. Only expand radius to 100-150km if no mandis found within 50km.
+- IMPORTANT: "near me" means within 50km radius of the user's GPS location. Do NOT return mandis from all over India — only mandis within the specified radius.
 - For "all prices at this mandi" queries, use get_all_prices_at_mandi with the mandi name.
 
 ## DATA FRESHNESS RULES

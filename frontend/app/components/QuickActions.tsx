@@ -8,9 +8,10 @@ interface QuickActionsProps {
   disabled: boolean;
   locationState?: string;
   locationCity?: string;
+  crops?: { en: string; hi: string }[];
 }
 
-const COMMODITY_OPTIONS = [
+const DEFAULT_CROPS = [
   { en: "Wheat", hi: "गेहूं" },
   { en: "Soyabean", hi: "सोयाबीन" },
   { en: "Onion", hi: "प्याज" },
@@ -25,11 +26,12 @@ const COMMODITY_OPTIONS = [
 
 type PickerMode = "price" | "bestMandi" | "sellHold" | null;
 
-export default function QuickActions({ language, onAction, disabled, locationState, locationCity }: QuickActionsProps) {
+export default function QuickActions({ language, onAction, disabled, locationState, locationCity, crops }: QuickActionsProps) {
   const isHindi = language === "hi";
   const loc = locationCity || locationState || "";
   const hasLoc = !!loc;
   const [pickerMode, setPickerMode] = useState<PickerMode>(null);
+  const cropList = crops && crops.length > 0 ? crops : DEFAULT_CROPS;
 
   const handleCropSelect = (commodity: { en: string; hi: string }) => {
     const name = isHindi ? commodity.hi : commodity.en;
@@ -91,7 +93,7 @@ export default function QuickActions({ language, onAction, disabled, locationSta
             </button>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {COMMODITY_OPTIONS.map((c) => (
+            {cropList.map((c) => (
               <button
                 key={c.en}
                 onClick={() => handleCropSelect(c)}

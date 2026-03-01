@@ -85,8 +85,8 @@
             "name": "radius_km",
             "in": "query",
             "required": false,
-            "schema": { "type": "number", "default": 100 },
-            "description": "Search radius in kilometers (default: 100)"
+            "schema": { "type": "number", "default": 50 },
+            "description": "Search radius in kilometers (default: 50). Use 50km for 'near me' queries. Expand to 100-150km only if no mandis found within 50km."
           },
           {
             "name": "commodity",
