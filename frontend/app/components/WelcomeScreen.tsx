@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface WelcomeScreenProps {
   language: string;
   onQuickAction: (message: string) => void;
@@ -8,10 +10,69 @@ interface WelcomeScreenProps {
   locationLabel?: string;
 }
 
+const CROP_OPTIONS = [
+  { en: "Wheat", hi: "गेहूं" },
+  { en: "Soyabean", hi: "सोयाबीन" },
+  { en: "Onion", hi: "प्याज" },
+  { en: "Tomato", hi: "टमाटर" },
+  { en: "Potato", hi: "आलू" },
+  { en: "Chana", hi: "चना" },
+  { en: "Mustard", hi: "सरसों" },
+  { en: "Cotton", hi: "कपास" },
+  { en: "Maize", hi: "मक्का" },
+  { en: "Rice", hi: "धान" },
+  { en: "Garlic", hi: "लहसुन" },
+  { en: "Bajra", hi: "बाजरा" },
+];
+
 export default function WelcomeScreen({ language, onQuickAction, locationState, locationCity, locationLabel }: WelcomeScreenProps) {
   const isHindi = language === "hi";
   const loc = locationCity || locationState || "";
   const hasLocation = !!loc;
+
+  // Which feature card's crop picker is active
+  const [activePicker, setActivePicker] = useState<string | null>(null);
+
+  const handleCropSelect = (card: string, crop: { en: string; hi: string }) => {
+    const name = isHindi ? crop.hi : crop.en;
+    setActivePicker(null);
+
+    switch (card) {
+      case "price":
+        onQuickAction(
+          isHindi
+            ? (hasLocation ? `${name} का भाव बताओ ${loc} में` : `${name} का भाव बताओ`)
+            : (hasLocation ? `What is the current ${name} price in ${loc}?` : `What is the current ${name} price?`)
+        );
+        break;
+      case "bestMandi":
+        onQuickAction(
+          isHindi
+            ? (hasLocation ? `${loc} के पास ${name} के लिए सबसे अच्छी मंडी कौन सी है?` : `${name} के लिए सबसे अच्छी मंडी कौन सी है?`)
+            : (hasLocation ? `Which mandi near ${loc} has the best ${name} price?` : `Which mandi has the best ${name} price?`)
+        );
+        break;
+      case "sellHold":
+        onQuickAction(
+          isHindi
+            ? `क्या अभी ${name} बेचना चाहिए या कुछ दिन रुकना चाहिए? शेल्फ लाइफ और कितने दिन रुक सकते हैं यह भी बताओ।`
+            : `Should I sell my ${name} now or wait? Also tell me the shelf life and recommended hold time.`
+        );
+        break;
+      case "priceBrief":
+        onQuickAction(
+          isHindi
+            ? (hasLocation ? `${loc} में ${name} का price brief बनाओ negotiation के लिए` : `${name} का price brief बनाओ negotiation के लिए`)
+            : (hasLocation ? `Generate a price brief for ${name} in ${loc}` : `Generate a price brief for ${name} for negotiation`)
+        );
+        break;
+      case "msp":
+        onQuickAction(
+          isHindi ? `${name} का MSP क्या है?` : `What is the MSP for ${name}?`
+        );
+        break;
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
@@ -34,84 +95,97 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
         </p>
       )}
 
+      {/* Crop Picker Popup (shared for all cards) */}
+      {activePicker && (
+        <div className="w-full max-w-sm mb-3 p-3 bg-white rounded-xl border border-[#2d6a4f]/20 shadow-md animate-in">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-gray-500 font-medium">
+              {isHindi ? "कौन सी फसल?" : "Which crop?"}
+            </p>
+            <button
+              onClick={() => setActivePicker(null)}
+              className="text-gray-400 hover:text-gray-600 text-sm"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {CROP_OPTIONS.map((c) => (
+              <button
+                key={c.en}
+                onClick={() => handleCropSelect(activePicker, c)}
+                className="px-3 py-1.5 text-xs rounded-full border border-[#2d6a4f]/20 text-[#2d6a4f] hover:bg-[#2d6a4f] hover:text-white transition-all"
+              >
+                {isHindi ? c.hi : c.en}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Feature cards */}
       <div className="grid grid-cols-2 gap-3 w-full max-w-sm mb-4">
         <FeatureCard
           icon="💰"
           title={isHindi ? "लाइव भाव" : "Live Prices"}
           desc={isHindi ? (hasLocation ? `${loc} में भाव` : "किसी भी फसल का भाव") : (hasLocation ? `Prices in ${loc}` : "Check any crop price")}
-          onClick={() =>
-            onQuickAction(
-              isHindi
-                ? (hasLocation ? `गेहूं का भाव बताओ ${loc} में` : "गेहूं का भाव बताओ")
-                : (hasLocation ? `What is wheat price in ${loc}?` : "What is wheat price?")
-            )
-          }
+          onClick={() => setActivePicker("price")}
+          active={activePicker === "price"}
         />
         <FeatureCard
           icon="📍"
           title={isHindi ? "सबसे अच्छी मंडी" : "Best Mandi"}
           desc={isHindi ? (hasLocation ? `${loc} के पास` : "पास की मंडियां") : (hasLocation ? `Near ${loc}` : "Nearby mandis")}
-          onClick={() =>
-            onQuickAction(
-              isHindi
-                ? (hasLocation ? `${loc} के पास गेहूं के लिए सबसे अच्छी मंडी कौन सी है?` : "मेरे पास की मंडियों में गेहूं कहाँ महंगा है?")
-                : (hasLocation ? `Which mandi near ${loc} has the best wheat price?` : "Which nearby mandi has the best wheat price?")
-            )
-          }
+          onClick={() => setActivePicker("bestMandi")}
+          active={activePicker === "bestMandi"}
         />
         <FeatureCard
           icon="🏪"
-          title={isHindi ? "मंडी के सब भाव" : "All Mandi Prices"}
-          desc={isHindi ? "एक मंडी की सब फसलें" : "All crops at a mandi"}
+          title={isHindi ? "मंडी जानकारी" : "Mandi Info"}
+          desc={isHindi ? "मंडी प्रोफ़ाइल देखें" : "Market profile & details"}
           onClick={() =>
             onQuickAction(
               isHindi
-                ? (hasLocation ? `${loc} की मंडी में आज सब फसलों का भाव बताओ` : "मेरे पास की मंडी में आज सब फसलों का भाव बताओ")
-                : (hasLocation ? `Show all commodity prices at ${loc} mandi today` : "Show all commodity prices at the nearest mandi")
+                ? (hasLocation ? `${loc} मंडी की पूरी जानकारी दो — कौन सी फसलें बिक रही हैं, भाव, और Agmarknet विवरण` : "मंडी की जानकारी दो — कौन सी फसलें बिक रही हैं और भाव क्या हैं?")
+                : (hasLocation ? `Give me full information about ${loc} mandi — what commodities are traded, prices, and Agmarknet details` : "Give me mandi information — what commodities are available and their prices?")
             )
           }
         />
         <FeatureCard
           icon="⏳"
           title={isHindi ? "बेचें या रुकें" : "Sell or Hold"}
-          desc={isHindi ? "AI सलाह" : "AI-powered advice"}
-          onClick={() =>
-            onQuickAction(
-              isHindi
-                ? "क्या अभी सोयाबीन बेचना चाहिए या रुकना चाहिए?"
-                : "Should I sell soyabean now or wait?"
-            )
-          }
+          desc={isHindi ? "शेल्फ लाइफ + AI सलाह" : "Shelf life + AI advice"}
+          onClick={() => setActivePicker("sellHold")}
+          active={activePicker === "sellHold"}
         />
       </div>
 
       {/* Browse options */}
       <div className="w-full max-w-sm mb-4">
         <p className="text-xs text-gray-400 px-1 mb-2 font-medium">
-          {isHindi ? "या पूछें:" : "Or ask:"}
+          {isHindi ? "और जानें:" : "Explore:"}
         </p>
         <div className="flex flex-wrap gap-2">
           <QuickChip
             label={isHindi ? "📋 Price Brief" : "📋 Price Brief"}
+            onClick={() => setActivePicker("priceBrief")}
+          />
+          <QuickChip
+            label={isHindi ? "📊 MSP जानें" : "📊 Check MSP"}
+            onClick={() => setActivePicker("msp")}
+          />
+          <QuickChip
+            label={isHindi ? "🌤️ मौसम" : "🌤️ Weather"}
             onClick={() =>
               onQuickAction(
                 isHindi
-                  ? (hasLocation ? `${loc} में गेहूं का price brief बनाओ negotiation के लिए` : "गेहूं का price brief बनाओ negotiation के लिए")
-                  : (hasLocation ? `Generate a price brief for wheat in ${loc}` : "Generate a price brief for wheat for negotiation")
+                  ? (hasLocation ? `${loc} में अगले 5 दिन मौसम कैसा रहेगा?` : "अगले 5 दिन मौसम कैसा रहेगा?")
+                  : (hasLocation ? `What's the weather forecast for ${loc} for the next 5 days?` : "What's the weather forecast for the next 5 days?")
               )
             }
           />
           <QuickChip
-            label={isHindi ? "📊 MSP क्या है?" : "📊 What is MSP?"}
-            onClick={() =>
-              onQuickAction(
-                isHindi ? "गेहूं का MSP क्या है?" : "What is the MSP for wheat?"
-              )
-            }
-          />
-          <QuickChip
-            label={isHindi ? "🌾 कौन सी फसलें?" : "🌾 Which crops?"}
+            label={isHindi ? "🌾 फसलें देखें" : "🌾 View Crops"}
             onClick={() =>
               onQuickAction(
                 isHindi
@@ -121,7 +195,7 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
             }
           />
           <QuickChip
-            label={isHindi ? "🏪 कौन सी मंडियां?" : "🏪 Which mandis?"}
+            label={isHindi ? "🏪 मंडियां देखें" : "🏪 View Mandis"}
             onClick={() =>
               onQuickAction(
                 isHindi
@@ -137,8 +211,8 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
       <div className="flex items-center gap-2 text-xs text-gray-400">
         <span className="w-2 h-2 bg-green-400 rounded-full" />
         {isHindi
-          ? "डेटा स्रोत: Agmarknet (data.gov.in) — प्रतिदिन अपडेट"
-          : "Data source: Agmarknet (data.gov.in) — Updated daily"}
+          ? "डेटा स्रोत: Agmarknet (data.gov.in) — प्रतिदिन शाम 5:30 बजे अपडेट"
+          : "Data source: Agmarknet (data.gov.in) — Updated daily by 5:30 PM IST"}
       </div>
 
       {/* Powered by */}
@@ -154,16 +228,22 @@ function FeatureCard({
   title,
   desc,
   onClick,
+  active,
 }: {
   icon: string;
   title: string;
   desc: string;
   onClick: () => void;
+  active?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className="bg-white rounded-xl p-4 text-left shadow-sm border border-gray-100 hover:border-[#2d6a4f]/30 hover:shadow-md transition-all active:scale-[0.98]"
+      className={`bg-white rounded-xl p-4 text-left shadow-sm border transition-all active:scale-[0.98] ${
+        active
+          ? "border-[#2d6a4f] shadow-md ring-1 ring-[#2d6a4f]/20"
+          : "border-gray-100 hover:border-[#2d6a4f]/30 hover:shadow-md"
+      }`}
     >
       <span className="text-2xl">{icon}</span>
       <h3 className="text-sm font-semibold text-gray-800 mt-2">{title}</h3>
@@ -182,7 +262,7 @@ function QuickChip({
   return (
     <button
       onClick={onClick}
-      className="bg-white border border-gray-200 text-gray-600 rounded-full px-3 py-1.5 text-xs hover:border-[#2d6a4f]/30 hover:text-[#2d6a4f] transition-all"
+      className="bg-white border border-gray-200 text-gray-600 rounded-full px-3 py-1.5 text-xs hover:border-[#2d6a4f]/30 hover:text-[#2d6a4f] transition-all active:scale-[0.97]"
     >
       {label}
     </button>
