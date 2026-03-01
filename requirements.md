@@ -181,7 +181,7 @@ India has 7,000+ APMC mandis generating massive commodity price data, yet small 
 
 | Component | AWS Service | Purpose |
 |-----------|-------------|---------|
-| LLM / Reasoning | Amazon Bedrock (Claude / Titan) | Agent reasoning, NLU, response generation |
+| LLM / Reasoning | Amazon Bedrock (Nova Pro) | Agent reasoning, NLU, response generation |
 | Agent Orchestration | Amazon Bedrock Agents | Multi-agent coordination, tool use |
 | Knowledge Base | Amazon Bedrock Knowledge Bases | RAG over agricultural documents, policies |
 | Data Storage | Amazon DynamoDB | Price time-series, user sessions |
@@ -189,6 +189,7 @@ India has 7,000+ APMC mandis generating massive commodity price data, yet small 
 | Compute | AWS Lambda | Data ingestion, API handlers |
 | Scheduling | Amazon EventBridge | Daily data refresh triggers |
 | API Layer | Amazon API Gateway | REST API for frontend |
+| CDN / HTTPS | Amazon CloudFront | HTTPS delivery for S3 frontend (enables Voice + GPS) |
 | Monitoring | Amazon CloudWatch | Logs, metrics, alarms |
 | IDE / Dev | Kiro | Requirements & design generation |
 
