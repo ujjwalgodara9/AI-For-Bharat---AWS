@@ -10,12 +10,26 @@ AGMARKNET_RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070"
 AGMARKNET_BASE_URL = f"https://api.data.gov.in/resource/{AGMARKNET_RESOURCE_ID}"
 
 # Top commodities to track (covers 80%+ of Indian farmer queries)
+# Names must match data_ingestion COMMODITIES list (which matches Agmarknet API filter names)
 TRACKED_COMMODITIES = [
     "Wheat", "Soyabean", "Onion", "Tomato", "Potato",
-    "Mustard", "Chana", "Maize", "Cotton", "Rice (Paddy)",
-    "Garlic", "Moong Dal", "Urad Dal", "Bajra", "Jowar",
+    "Mustard", "Chana", "Maize", "Cotton", "Rice",
+    "Garlic", "Moong", "Urad", "Bajra", "Jowar",
     "Groundnut", "Turmeric", "Red Chilli", "Coriander", "Cumin"
 ]
+
+# English ↔ Hindi translations for all commodities (covers DB names + variants)
+COMMODITY_TRANSLATIONS = {
+    "Wheat": "गेहूं", "Soyabean": "सोयाबीन", "Onion": "प्याज",
+    "Tomato": "टमाटर", "Potato": "आलू", "Chana": "चना",
+    "Mustard": "सरसों", "Cotton": "कपास", "Maize": "मक्का",
+    "Rice": "धान", "Garlic": "लहसुन", "Moong": "मूंग",
+    "Urad": "उड़द", "Bajra": "बाजरा", "Jowar": "ज्वार",
+    "Groundnut": "मूंगफली", "Turmeric": "हल्दी", "Red Chilli": "लाल मिर्च",
+    "Coriander": "धनिया", "Cumin": "जीरा",
+    # Variant names (for backward compatibility)
+    "Rice (Paddy)": "धान", "Moong Dal": "मूंग दाल", "Urad Dal": "उड़द दाल",
+}
 
 # States to cover (major agricultural states)
 TRACKED_STATES = [
@@ -27,15 +41,15 @@ TRACKED_STATES = [
 # MSP rates for 2025-26 (₹ per quintal) — sourced from Ministry of Agriculture
 MSP_RATES = {
     "Wheat": 2275,
-    "Rice (Paddy)": 2300,
+    "Rice (Paddy)": 2300, "Rice": 2300,
     "Soyabean": 4892,
     "Chana": 5440,
     "Mustard": 5650,
     "Maize": 2225,
     "Bajra": 2625,
     "Jowar": 3371,
-    "Moong Dal": 8682,
-    "Urad Dal": 7400,
+    "Moong Dal": 8682, "Moong": 8682,
+    "Urad Dal": 7400, "Urad": 7400,
     "Groundnut": 6377,
     "Cotton": 7121,
     "Onion": None,      # No MSP for onion
@@ -50,16 +64,16 @@ MSP_RATES = {
 
 # Perishability index (1 = can store years, 10 = rots in days)
 PERISHABILITY_INDEX = {
-    "Wheat": 1, "Rice (Paddy)": 1, "Chana": 1, "Maize": 1,
+    "Wheat": 1, "Rice (Paddy)": 1, "Rice": 1, "Chana": 1, "Maize": 1,
     "Bajra": 1, "Jowar": 1, "Mustard": 1, "Soyabean": 2,
-    "Groundnut": 2, "Cotton": 1, "Moong Dal": 2, "Urad Dal": 2,
+    "Groundnut": 2, "Cotton": 1, "Moong Dal": 2, "Moong": 2, "Urad Dal": 2, "Urad": 2,
     "Coriander": 3, "Cumin": 2, "Turmeric": 3, "Red Chilli": 3,
     "Garlic": 5, "Onion": 6, "Potato": 6, "Tomato": 9,
 }
 
 # Storage cost estimate (₹ per quintal per day)
 STORAGE_COST_PER_DAY = {
-    "Wheat": 1.5, "Rice (Paddy)": 1.5, "Soyabean": 2.0,
+    "Wheat": 1.5, "Rice (Paddy)": 1.5, "Rice": 1.5, "Soyabean": 2.0,
     "Onion": 5.0, "Tomato": 15.0, "Potato": 4.0,
     "default": 2.0,
 }
@@ -90,6 +104,10 @@ STORAGE_TIPS = {
     "Coriander": {"method": "Dry seeds well, store in cloth bags in cool area.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<60%", "method_hi": "बीजों को अच्छी तरह सुखाएं, कपड़े की बोरियों में ठंडी जगह रखें।"},
     "Cumin": {"method": "Sun-dry completely, store in airtight containers.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<60%", "method_hi": "पूरी तरह धूप में सुखाएं, एयरटाइट बर्तनों में रखें।"},
 }
+# Aliases for DB name variants
+STORAGE_TIPS["Rice"] = STORAGE_TIPS["Rice (Paddy)"]
+STORAGE_TIPS["Moong"] = STORAGE_TIPS["Moong Dal"]
+STORAGE_TIPS["Urad"] = STORAGE_TIPS["Urad Dal"]
 
 # Crop harvest and sowing seasons (month numbers)
 # harvest = peak supply → prices typically under pressure
@@ -116,6 +134,10 @@ CROP_SEASONS = {
     "Coriander": {"harvest": [2, 3], "sowing": [10, 11], "type": "Rabi"},
     "Cumin": {"harvest": [2, 3], "sowing": [10, 11], "type": "Rabi"},
 }
+# Aliases for DB name variants
+CROP_SEASONS["Rice"] = CROP_SEASONS["Rice (Paddy)"]
+CROP_SEASONS["Moong"] = CROP_SEASONS["Moong Dal"]
+CROP_SEASONS["Urad"] = CROP_SEASONS["Urad Dal"]
 
 # Weather impact on crop storage — shelf life multiplier
 WEATHER_STORAGE_IMPACT = {

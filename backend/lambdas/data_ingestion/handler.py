@@ -33,12 +33,14 @@ COMMODITIES = [
     "Wheat", "Soyabean", "Onion", "Tomato", "Potato",
     "Mustard", "Chana", "Maize", "Cotton", "Rice",
     "Garlic", "Moong", "Urad", "Bajra", "Jowar",
+    "Groundnut", "Turmeric", "Red Chilli", "Coriander", "Cumin",
 ]
 
 STATES = [
     "Madhya Pradesh", "Rajasthan", "Maharashtra",
     "Uttar Pradesh", "Gujarat", "Karnataka",
     "Punjab", "Haryana", "Andhra Pradesh",
+    "Telangana", "Tamil Nadu", "Bihar", "West Bengal", "Chhattisgarh",
 ]
 
 

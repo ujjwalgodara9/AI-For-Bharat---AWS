@@ -16,7 +16,8 @@ from shared.dynamodb_utils import (
     query_prices, query_mandi_prices, get_price_trend, get_msp,
     get_nearby_mandis, calculate_net_realization,
     get_sell_recommendation_data, get_mandi_profile,
-    list_available_commodities, list_available_mandis, list_available_states
+    list_available_commodities, list_available_mandis, list_available_states,
+    list_commodities_with_translations
 )
 from shared.constants import MANDI_COORDINATES
 from shared.weather_utils import get_weather_advisory
@@ -47,6 +48,12 @@ def handle_api_request(event):
     commodity = path_params.get("commodity", "").strip()
     if not commodity:
         return api_response(400, {"error": "commodity path parameter is required"})
+
+    # Special case: list available commodities with Hindi translations
+    if commodity == "_list":
+        state = query_params.get("state", "")
+        commodities = list_commodities_with_translations(state if state else None)
+        return api_response(200, {"commodities": commodities, "count": len(commodities), "state": state or "all"})
 
     state = query_params.get("state", "Madhya Pradesh")
     mandi = query_params.get("mandi", None)
@@ -125,7 +132,7 @@ def handle_agent_action(event):
         elif function == "get_nearby_mandis":
             lat = float(params.get("latitude", "22.7196"))
             lon = float(params.get("longitude", "75.8577"))
-            radius = float(params.get("radius_km", "100"))
+            radius = float(params.get("radius_km", "50"))
             commodity = params.get("commodity", "")
 
             mandis = get_nearby_mandis(lat, lon, radius, commodity)

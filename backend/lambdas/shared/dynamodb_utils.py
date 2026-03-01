@@ -10,7 +10,8 @@ from boto3.dynamodb.conditions import Key, Attr
 from .constants import (
     PRICE_TABLE_NAME, MANDI_COORDINATES, TRANSPORT_COST_PER_QTL_PER_KM,
     MSP_RATES, PERISHABILITY_INDEX, STORAGE_COST_PER_DAY,
-    STORAGE_TIPS, CROP_SEASONS, WEATHER_STORAGE_IMPACT
+    STORAGE_TIPS, CROP_SEASONS, WEATHER_STORAGE_IMPACT,
+    COMMODITY_TRANSLATIONS
 )
 
 dynamodb = boto3.resource("dynamodb", region_name=os.environ.get("AWS_REGION", "us-east-1"))
@@ -606,6 +607,18 @@ def list_available_states() -> list:
             states.add(item.get("state", ""))
 
     return sorted([s for s in states if s])
+
+
+def list_commodities_with_translations(state: str = None) -> list:
+    """Return commodities available in DB for a state, with Hindi translations."""
+    commodities = list_available_commodities(state)
+    result = []
+    for c in commodities:
+        result.append({
+            "en": c,
+            "hi": COMMODITY_TRANSLATIONS.get(c, c),
+        })
+    return result
 
 
 def get_mandi_profile(mandi: str, days: int = 7) -> dict:

@@ -8,9 +8,10 @@ interface WelcomeScreenProps {
   locationState?: string;
   locationCity?: string;
   locationLabel?: string;
+  crops?: { en: string; hi: string }[];
 }
 
-const CROP_OPTIONS = [
+const DEFAULT_CROPS = [
   { en: "Wheat", hi: "गेहूं" },
   { en: "Soyabean", hi: "सोयाबीन" },
   { en: "Onion", hi: "प्याज" },
@@ -25,10 +26,11 @@ const CROP_OPTIONS = [
   { en: "Bajra", hi: "बाजरा" },
 ];
 
-export default function WelcomeScreen({ language, onQuickAction, locationState, locationCity, locationLabel }: WelcomeScreenProps) {
+export default function WelcomeScreen({ language, onQuickAction, locationState, locationCity, locationLabel, crops }: WelcomeScreenProps) {
   const isHindi = language === "hi";
   const loc = locationCity || locationState || "";
   const hasLocation = !!loc;
+  const cropList = crops && crops.length > 0 ? crops : DEFAULT_CROPS;
 
   // Which feature card's crop picker is active
   const [activePicker, setActivePicker] = useState<string | null>(null);
@@ -110,7 +112,7 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
             </button>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {CROP_OPTIONS.map((c) => (
+            {cropList.map((c) => (
               <button
                 key={c.en}
                 onClick={() => handleCropSelect(activePicker, c)}

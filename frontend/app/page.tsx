@@ -31,6 +31,7 @@ export default function Home() {
   const [locationState, setLocationState] = useState("");
   const [locationCity, setLocationCity] = useState("");
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [availableCrops, setAvailableCrops] = useState<{en: string; hi: string}[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -40,6 +41,25 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
+
+  // Fetch available commodities when location state changes
+  useEffect(() => {
+    if (!locationState || !API_BASE) return;
+    const fetchCrops = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/prices/_list?state=${encodeURIComponent(locationState)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.commodities && data.commodities.length > 0) {
+            setAvailableCrops(data.commodities);
+          }
+        }
+      } catch {
+        // Silently fail — components will use fallback hardcoded list
+      }
+    };
+    fetchCrops();
+  }, [locationState]);
 
   // Auto-open location picker on first visit if no location is set
   useEffect(() => {
@@ -147,7 +167,7 @@ export default function Home() {
       {/* Chat area */}
       <div className="flex-1 overflow-y-auto chat-scroll">
         {messages.length === 0 ? (
-          <WelcomeScreen language={language} onQuickAction={sendMessage} locationState={locationState} locationCity={locationCity} locationLabel={locationLabel} />
+          <WelcomeScreen language={language} onQuickAction={sendMessage} locationState={locationState} locationCity={locationCity} locationLabel={locationLabel} crops={availableCrops} />
         ) : (
           <div className="py-4">
             {messages.map((msg) => (
@@ -167,6 +187,7 @@ export default function Home() {
           disabled={isLoading}
           locationState={locationState}
           locationCity={locationCity}
+          crops={availableCrops}
         />
       )}
 
