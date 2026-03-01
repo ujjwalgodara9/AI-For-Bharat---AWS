@@ -9,7 +9,8 @@ from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 from .constants import (
     PRICE_TABLE_NAME, MANDI_COORDINATES, TRANSPORT_COST_PER_QTL_PER_KM,
-    MSP_RATES, PERISHABILITY_INDEX, STORAGE_COST_PER_DAY
+    MSP_RATES, PERISHABILITY_INDEX, STORAGE_COST_PER_DAY,
+    STORAGE_TIPS, CROP_SEASONS, WEATHER_STORAGE_IMPACT
 )
 
 dynamodb = boto3.resource("dynamodb", region_name=os.environ.get("AWS_REGION", "us-east-1"))
@@ -243,24 +244,168 @@ def get_msp(commodity: str) -> dict:
     }
 
 
-def get_sell_recommendation_data(commodity: str, state: str, lat: float, lon: float, quantity: float, storage_available: bool) -> dict:
-    """Gather all data needed for sell recommendation."""
-    # Get nearby mandis with prices
+def _predict_prices(daily_prices: list) -> list:
+    """Simple linear regression on daily prices to predict next 1-3 days."""
+    if len(daily_prices) < 3:
+        return []
+
+    # x = day index, y = price
+    n = len(daily_prices)
+    xs = list(range(n))
+    ys = [p["price"] for p in daily_prices]
+
+    # Linear regression: y = mx + b
+    sum_x = sum(xs)
+    sum_y = sum(ys)
+    sum_xy = sum(x * y for x, y in zip(xs, ys))
+    sum_x2 = sum(x * x for x in xs)
+
+    denom = n * sum_x2 - sum_x * sum_x
+    if denom == 0:
+        return []
+
+    m = (n * sum_xy - sum_x * sum_y) / denom
+    b = (sum_y - m * sum_x) / n
+
+    # Predict next 1-3 days
+    last_date = datetime.strptime(daily_prices[-1]["date"], "%Y-%m-%d")
+    predictions = []
+    for i in range(1, 4):
+        pred_price = round(m * (n - 1 + i) + b, 2)
+        pred_date = (last_date + timedelta(days=i)).strftime("%Y-%m-%d")
+        predictions.append({"date": pred_date, "predicted_price": max(pred_price, 0)})
+
+    return predictions
+
+
+def _get_season_context(commodity: str) -> dict:
+    """Determine current season context for a commodity."""
+    current_month = datetime.utcnow().month
+    season = CROP_SEASONS.get(commodity, {})
+
+    if not season:
+        return {"is_harvest": False, "is_sowing": False, "season_type": "Unknown", "note": "Season data not available"}
+
+    is_harvest = current_month in season.get("harvest", [])
+    is_sowing = current_month in season.get("sowing", [])
+
+    if is_harvest:
+        note = f"Peak harvest season for {commodity} ({season['type']}). High supply in mandis — prices typically under pressure."
+        note_hi = f"{commodity} की कटाई का मौसम ({season['type']})। मंडी में आवक ज्यादा — भाव पर दबाव रहता है।"
+    elif is_sowing:
+        note = f"Sowing season for {commodity}. Off-season supply — prices may hold steady or rise."
+        note_hi = f"{commodity} की बुवाई का मौसम। ऑफ-सीज़न आपूर्ति — भाव स्थिर या बढ़ सकते हैं।"
+    else:
+        note = f"Normal season for {commodity} ({season['type']}). Regular market conditions."
+        note_hi = f"{commodity} के लिए सामान्य मौसम ({season['type']})। नियमित बाज़ार स्थिति।"
+
+    return {
+        "is_harvest": is_harvest,
+        "is_sowing": is_sowing,
+        "season_type": season.get("type", "Unknown"),
+        "note": note,
+        "note_hi": note_hi,
+    }
+
+
+def _assess_weather_storage_risk(weather_data: dict, commodity: str) -> dict:
+    """Assess how weather affects crop storage and shelf life."""
+    if not weather_data or "error" in weather_data:
+        return {"condition": "normal", "shelf_life_factor": 1.0, "risk_note": "Weather data not available", "risk_note_hi": "मौसम डेटा उपलब्ध नहीं"}
+
+    advisory = weather_data.get("advisory", {})
+    total_rain = advisory.get("total_rain_5d", 0)
+    forecast = weather_data.get("forecast", [])
+
+    # Determine max temperature in next 5 days
+    max_temp = 0
+    min_temp = 100
+    for day in forecast:
+        max_temp = max(max_temp, day.get("max_temp", 0))
+        min_temp = min(min_temp, day.get("min_temp", 100))
+
+    # Classify weather condition
+    if total_rain > 50 or max_temp > 42:
+        condition = "high_rain" if total_rain > 50 else "high_heat"
+    elif total_rain > 20 or max_temp > 38:
+        condition = "moderate_rain" if total_rain > 20 else "high_heat"
+    elif min_temp < 5:
+        condition = "cold"
+    else:
+        condition = "normal"
+
+    impact = WEATHER_STORAGE_IMPACT.get(condition, WEATHER_STORAGE_IMPACT["normal"])
+
+    return {
+        "condition": condition,
+        "shelf_life_factor": impact["shelf_life_factor"],
+        "risk_note": impact["risk"],
+        "risk_note_hi": impact.get("risk_hi", impact["risk"]),
+        "total_rain_5d": round(total_rain, 1),
+        "max_temp_5d": round(max_temp, 1),
+        "min_temp_5d": round(min_temp, 1),
+    }
+
+
+def get_sell_recommendation_data(commodity: str, state: str, lat: float, lon: float,
+                                  quantity: float, storage_available: bool,
+                                  weather_data: dict = None) -> dict:
+    """Comprehensive sell recommendation with price prediction, weather, season, and storage advice."""
+    # 1. Get nearby mandis with prices
     nearby = get_nearby_mandis(lat, lon, radius_km=150, commodity=commodity)
 
-    # Get trend
-    trend = get_price_trend(commodity, state, nearby[0]["mandi"] if nearby else "", days=30)
+    # 2. Get 7-day price history for daily breakdown
+    best_mandi_name = nearby[0]["mandi"] if nearby else ""
+    prices_7d = query_prices(commodity, state, best_mandi_name, days=7)
 
-    # Get MSP
+    # Build daily price array (group by date, take modal price)
+    daily_map = {}
+    for p in prices_7d:
+        d = p.get("arrival_date", "")
+        mp = p.get("modal_price")
+        if d and mp:
+            if d not in daily_map or mp > daily_map[d]:
+                daily_map[d] = mp
+    daily_prices = sorted([{"date": d, "price": p} for d, p in daily_map.items()], key=lambda x: x["date"])
+
+    # 3. Price prediction (linear regression on 7-day data)
+    predicted_prices = _predict_prices(daily_prices)
+    prediction_direction = "stable"
+    if predicted_prices and daily_prices:
+        current = daily_prices[-1]["price"]
+        predicted = predicted_prices[0]["predicted_price"]
+        change = ((predicted - current) / current) * 100 if current > 0 else 0
+        if change > 1.5:
+            prediction_direction = "rising"
+        elif change < -1.5:
+            prediction_direction = "falling"
+
+    # 4. Get 30-day trend
+    trend = get_price_trend(commodity, state, best_mandi_name, days=30)
+
+    # 5. Get MSP
     msp = get_msp(commodity)
 
-    # Get perishability
-    perish = PERISHABILITY_INDEX.get(commodity, 3)
+    # 6. Season context
+    season_context = _get_season_context(commodity)
 
-    # Get storage cost
+    # 7. Weather storage risk
+    weather_risk = _assess_weather_storage_risk(weather_data, commodity)
+
+    # 8. Perishability and base shelf life
+    perish = PERISHABILITY_INDEX.get(commodity, 3)
+    base_shelf_life = {
+        1: 180, 2: 90, 3: 60, 4: 30, 5: 14, 6: 10, 7: 7, 8: 5, 9: 3, 10: 1
+    }.get(perish, 30)
+
+    # 9. Weather-adjusted shelf life
+    weather_factor = weather_risk.get("shelf_life_factor", 1.0)
+    adjusted_shelf_life = max(1, int(base_shelf_life * weather_factor))
+
+    # 10. Storage cost
     storage_cost = STORAGE_COST_PER_DAY.get(commodity, STORAGE_COST_PER_DAY["default"])
 
-    # Calculate net realization for each mandi
+    # 11. Calculate net realization for each mandi
     for m in nearby:
         if m.get("modal_price"):
             m["net_realization"] = calculate_net_realization(
@@ -268,25 +413,92 @@ def get_sell_recommendation_data(commodity: str, state: str, lat: float, lon: fl
             )
             m["transport_cost_per_qtl"] = round(m["distance_km"] * TRANSPORT_COST_PER_QTL_PER_KM, 2)
 
-    # Sort by net realization
-    mandis_with_prices = [m for m in nearby if m.get("net_realization")]
-    mandis_with_prices.sort(key=lambda x: x["net_realization"], reverse=True)
+    mandis_with_prices = sorted(
+        [m for m in nearby if m.get("net_realization")],
+        key=lambda x: x["net_realization"], reverse=True
+    )
 
-    # Calculate shelf life and recommended hold time based on perishability
-    shelf_life_days = {
-        1: 180, 2: 90, 3: 60, 4: 30, 5: 14, 6: 10, 7: 7, 8: 5, 9: 3, 10: 1
-    }.get(perish, 30)
-
-    # Recommend hold days only if trend is rising and commodity can last
+    # 12. Recommended hold days (considers trend, prediction, weather, season)
     recommended_hold_days = 0
-    if trend.get("trend") == "rising" and storage_available:
-        # Hold up to 30% of shelf life, max 15 days
-        recommended_hold_days = min(int(shelf_life_days * 0.3), 15)
-    elif trend.get("trend") == "stable" and perish <= 3 and storage_available:
-        recommended_hold_days = min(int(shelf_life_days * 0.2), 10)
+    trend_dir = trend.get("trend", "no_data")
 
-    # Estimate storage loss if holding
+    if storage_available and adjusted_shelf_life > 1:
+        if trend_dir == "rising" or prediction_direction == "rising":
+            recommended_hold_days = min(int(adjusted_shelf_life * 0.3), 15)
+        elif trend_dir == "stable" and perish <= 3:
+            recommended_hold_days = min(int(adjusted_shelf_life * 0.2), 10)
+
+        # Reduce hold if harvest season (oversupply → prices may drop)
+        if season_context.get("is_harvest") and recommended_hold_days > 0:
+            recommended_hold_days = max(1, recommended_hold_days // 2)
+
+        # Don't recommend hold if weather is bad for storage
+        if weather_risk["condition"] in ("high_rain", "high_heat") and perish >= 5:
+            recommended_hold_days = 0
+
     total_storage_cost = storage_cost * recommended_hold_days * quantity if recommended_hold_days > 0 else 0
+
+    # 13. Storage tips
+    tips = STORAGE_TIPS.get(commodity, {
+        "method": "Store in dry, ventilated area.",
+        "warehouse": False,
+        "ideal_temp": "25-30°C",
+        "humidity": "<65%",
+        "method_hi": "सूखी, हवादार जगह में रखें।",
+    })
+    warehouse_recommended = tips.get("warehouse", False) and recommended_hold_days > 3 and storage_available
+
+    # 14. Build factual reasoning
+    reasons = []
+    reasons_hi = []
+
+    # Price trend reason
+    if trend_dir == "rising":
+        reasons.append(f"Price trending UP {abs(trend.get('change_pct', 0)):.1f}% over 30 days")
+        reasons_hi.append(f"पिछले 30 दिनों में भाव {abs(trend.get('change_pct', 0)):.1f}% बढ़ा")
+    elif trend_dir == "falling":
+        reasons.append(f"Price trending DOWN {abs(trend.get('change_pct', 0)):.1f}% over 30 days")
+        reasons_hi.append(f"पिछले 30 दिनों में भाव {abs(trend.get('change_pct', 0)):.1f}% गिरा")
+    elif trend_dir == "stable":
+        reasons.append("Price stable over 30 days")
+        reasons_hi.append("पिछले 30 दिनों में भाव स्थिर")
+
+    # Prediction reason
+    if predicted_prices:
+        pred = predicted_prices[0]["predicted_price"]
+        cur = daily_prices[-1]["price"] if daily_prices else 0
+        if cur > 0:
+            pct = ((pred - cur) / cur) * 100
+            reasons.append(f"Tomorrow's predicted price: Rs.{pred:.0f} ({pct:+.1f}%)")
+            reasons_hi.append(f"कल का अनुमानित भाव: ₹{pred:.0f} ({pct:+.1f}%)")
+
+    # Season reason
+    reasons.append(season_context["note"])
+    reasons_hi.append(season_context["note_hi"])
+
+    # Weather reason
+    if weather_risk["condition"] != "normal":
+        reasons.append(f"Weather alert: {weather_risk['risk_note']}")
+        reasons_hi.append(f"मौसम चेतावनी: {weather_risk['risk_note_hi']}")
+    else:
+        reasons.append("Weather conditions normal — safe for storage and transport")
+        reasons_hi.append("मौसम सामान्य — भंडारण और ढुलाई के लिए सुरक्षित")
+
+    # MSP reason
+    if msp.get("has_msp") and mandis_with_prices:
+        best_price = mandis_with_prices[0].get("modal_price", 0)
+        msp_val = msp["msp"]
+        if best_price > msp_val:
+            reasons.append(f"Current price Rs.{best_price:.0f} is ABOVE MSP Rs.{msp_val}")
+            reasons_hi.append(f"मौजूदा भाव ₹{best_price:.0f} MSP ₹{msp_val} से ऊपर है")
+        else:
+            reasons.append(f"Current price Rs.{best_price:.0f} is BELOW MSP Rs.{msp_val}")
+            reasons_hi.append(f"मौजूदा भाव ₹{best_price:.0f} MSP ₹{msp_val} से नीचे है")
+
+    # Shelf life reason
+    if adjusted_shelf_life != base_shelf_life:
+        reasons.append(f"Shelf life reduced from {base_shelf_life} to {adjusted_shelf_life} days due to weather")
+        reasons_hi.append(f"मौसम के कारण शेल्फ लाइफ {base_shelf_life} से घटकर {adjusted_shelf_life} दिन हुई")
 
     return {
         "commodity": commodity,
@@ -296,11 +508,27 @@ def get_sell_recommendation_data(commodity: str, state: str, lat: float, lon: fl
         "trend": trend,
         "msp": msp,
         "perishability_index": perish,
-        "shelf_life_days": shelf_life_days,
+        "shelf_life_days": base_shelf_life,
+        "shelf_life_adjusted": adjusted_shelf_life,
         "recommended_hold_days": recommended_hold_days,
         "storage_cost_per_day": storage_cost,
         "total_storage_cost_if_held": round(total_storage_cost, 2),
         "storage_available": storage_available,
+        # New fields
+        "daily_prices": daily_prices,
+        "predicted_prices": predicted_prices,
+        "prediction_direction": prediction_direction,
+        "season_context": season_context,
+        "weather_risk": weather_risk,
+        "storage_tips": {
+            "method": tips.get("method", ""),
+            "method_hi": tips.get("method_hi", ""),
+            "warehouse_recommended": warehouse_recommended,
+            "ideal_temp": tips.get("ideal_temp", ""),
+            "humidity": tips.get("humidity", ""),
+        },
+        "reasons": reasons,
+        "reasons_hi": reasons_hi,
     }
 
 

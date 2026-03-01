@@ -67,6 +67,65 @@ STORAGE_COST_PER_DAY = {
 # Transport cost: ₹ per quintal per km (truck avg)
 TRANSPORT_COST_PER_QTL_PER_KM = 0.8
 
+# Storage tips per commodity — warehouse eligibility, method, conditions
+STORAGE_TIPS = {
+    "Wheat": {"method": "Dry gunny bags in ventilated room, moisture <12%. Use neem leaves to repel insects.", "warehouse": True, "ideal_temp": "25-30°C", "humidity": "<60%", "method_hi": "सूखी बोरियों में हवादार कमरे में रखें, नमी <12%। कीड़ों से बचाव के लिए नीम की पत्तियाँ रखें।"},
+    "Rice (Paddy)": {"method": "Store in dry jute bags, keep on wooden pallets. Ensure moisture <14%.", "warehouse": True, "ideal_temp": "25-30°C", "humidity": "<65%", "method_hi": "सूखी जूट की बोरियों में, लकड़ी के फट्टों पर रखें। नमी <14% रखें।"},
+    "Soyabean": {"method": "Clean dry bags, away from moisture. Store in cool dry place.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<65%", "method_hi": "साफ सूखी बोरियों में, नमी से दूर। ठंडी सूखी जगह पर रखें।"},
+    "Chana": {"method": "Dry clean bags, store elevated. Add dry neem leaves for pest control.", "warehouse": True, "ideal_temp": "25-30°C", "humidity": "<60%", "method_hi": "सूखी साफ बोरियों में ऊंचाई पर रखें। कीट नियंत्रण के लिए सूखी नीम की पत्तियाँ डालें।"},
+    "Mustard": {"method": "Store in airtight containers or clean bags. Keep dry and cool.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<60%", "method_hi": "एयरटाइट बर्तनों या साफ बोरियों में रखें। सूखा और ठंडा रखें।"},
+    "Maize": {"method": "Dry to <12% moisture before storage. Use metal bins if possible.", "warehouse": True, "ideal_temp": "25-30°C", "humidity": "<65%", "method_hi": "भंडारण से पहले <12% नमी तक सुखाएं। हो सके तो धातु के डिब्बों में रखें।"},
+    "Cotton": {"method": "Press into bales, store in dry covered area. Avoid direct sunlight.", "warehouse": True, "ideal_temp": "25-35°C", "humidity": "<65%", "method_hi": "गांठों में दबाएं, सूखी ढकी जगह में रखें। सीधी धूप से बचाएं।"},
+    "Bajra": {"method": "Store in dry airtight containers. Sun-dry before storage.", "warehouse": True, "ideal_temp": "25-30°C", "humidity": "<60%", "method_hi": "सूखे एयरटाइट बर्तनों में रखें। भंडारण से पहले धूप में सुखाएं।"},
+    "Jowar": {"method": "Store in jute bags on raised platforms. Keep ventilated.", "warehouse": True, "ideal_temp": "25-30°C", "humidity": "<60%", "method_hi": "जूट की बोरियों में ऊंचे चबूतरे पर रखें। हवादार रखें।"},
+    "Moong Dal": {"method": "Store in airtight bags with dried neem. Keep dry.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<60%", "method_hi": "सूखी नीम के साथ एयरटाइट बैग में रखें। सूखा रखें।"},
+    "Urad Dal": {"method": "Clean dry airtight containers. Use turmeric powder for pest control.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<60%", "method_hi": "साफ सूखे एयरटाइट बर्तनों में। कीट नियंत्रण के लिए हल्दी पाउडर मिलाएं।"},
+    "Groundnut": {"method": "Dry to <8% moisture. Store in jute bags in cool ventilated area.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<65%", "method_hi": "<8% नमी तक सुखाएं। ठंडी हवादार जगह में जूट की बोरियों में रखें।"},
+    "Onion": {"method": "Well-ventilated storage with airflow, avoid stacking. Use bamboo shelves.", "warehouse": False, "ideal_temp": "25-30°C", "humidity": "<70%", "method_hi": "अच्छी हवा वाली जगह में, ढेर न लगाएं। बांस की अलमारियों पर रखें।"},
+    "Tomato": {"method": "Cool shade, do NOT stack. Sell within 2-3 days. Refrigerate if possible.", "warehouse": False, "ideal_temp": "10-15°C", "humidity": "85-90%", "method_hi": "ठंडी छाया में रखें, ढेर न लगाएं। 2-3 दिन में बेचें। हो सके तो फ्रिज में रखें।"},
+    "Potato": {"method": "Store in dark, cool, ventilated area. Avoid sunlight (turns green).", "warehouse": True, "ideal_temp": "4-10°C", "humidity": "85-90%", "method_hi": "अंधेरी, ठंडी, हवादार जगह में रखें। धूप से बचाएं (हरा हो जाता है)।"},
+    "Garlic": {"method": "Hang in mesh bags with good airflow. Keep dry.", "warehouse": False, "ideal_temp": "25-30°C", "humidity": "<60%", "method_hi": "जालीदार बैग में लटकाएं, अच्छी हवा दें। सूखा रखें।"},
+    "Turmeric": {"method": "Dry thoroughly, store in gunny bags. Can be stored for months.", "warehouse": True, "ideal_temp": "25-30°C", "humidity": "<65%", "method_hi": "अच्छी तरह सुखाएं, बोरियों में रखें। महीनों तक रख सकते हैं।"},
+    "Red Chilli": {"method": "Sun-dry fully, store in airtight bags. Keep away from moisture.", "warehouse": True, "ideal_temp": "25-30°C", "humidity": "<60%", "method_hi": "पूरी तरह धूप में सुखाएं, एयरटाइट बैग में रखें। नमी से दूर रखें।"},
+    "Coriander": {"method": "Dry seeds well, store in cloth bags in cool area.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<60%", "method_hi": "बीजों को अच्छी तरह सुखाएं, कपड़े की बोरियों में ठंडी जगह रखें।"},
+    "Cumin": {"method": "Sun-dry completely, store in airtight containers.", "warehouse": True, "ideal_temp": "20-25°C", "humidity": "<60%", "method_hi": "पूरी तरह धूप में सुखाएं, एयरटाइट बर्तनों में रखें।"},
+}
+
+# Crop harvest and sowing seasons (month numbers)
+# harvest = peak supply → prices typically under pressure
+# sowing = off-season → limited supply, prices may hold or rise
+CROP_SEASONS = {
+    "Wheat": {"harvest": [3, 4], "sowing": [10, 11], "type": "Rabi"},
+    "Rice (Paddy)": {"harvest": [10, 11], "sowing": [6, 7], "type": "Kharif"},
+    "Soyabean": {"harvest": [10, 11], "sowing": [6, 7], "type": "Kharif"},
+    "Chana": {"harvest": [3, 4], "sowing": [10, 11], "type": "Rabi"},
+    "Mustard": {"harvest": [2, 3], "sowing": [10, 11], "type": "Rabi"},
+    "Maize": {"harvest": [9, 10], "sowing": [6, 7], "type": "Kharif"},
+    "Cotton": {"harvest": [10, 11, 12], "sowing": [5, 6], "type": "Kharif"},
+    "Bajra": {"harvest": [9, 10], "sowing": [6, 7], "type": "Kharif"},
+    "Jowar": {"harvest": [10, 11], "sowing": [6, 7], "type": "Kharif"},
+    "Moong Dal": {"harvest": [9, 10], "sowing": [6, 7], "type": "Kharif"},
+    "Urad Dal": {"harvest": [9, 10], "sowing": [6, 7], "type": "Kharif"},
+    "Groundnut": {"harvest": [10, 11], "sowing": [6, 7], "type": "Kharif"},
+    "Onion": {"harvest": [1, 2, 3, 11, 12], "sowing": [6, 7, 8, 9], "type": "Multiple"},
+    "Tomato": {"harvest": [1, 2, 3, 10, 11, 12], "sowing": [6, 7, 8, 9], "type": "Year-round"},
+    "Potato": {"harvest": [1, 2, 3], "sowing": [10, 11], "type": "Rabi"},
+    "Garlic": {"harvest": [2, 3, 4], "sowing": [9, 10, 11], "type": "Rabi"},
+    "Turmeric": {"harvest": [1, 2, 3], "sowing": [6, 7], "type": "Kharif (long)"},
+    "Red Chilli": {"harvest": [12, 1, 2], "sowing": [7, 8], "type": "Kharif"},
+    "Coriander": {"harvest": [2, 3], "sowing": [10, 11], "type": "Rabi"},
+    "Cumin": {"harvest": [2, 3], "sowing": [10, 11], "type": "Rabi"},
+}
+
+# Weather impact on crop storage — shelf life multiplier
+WEATHER_STORAGE_IMPACT = {
+    "high_rain": {"shelf_life_factor": 0.5, "risk": "Moisture damage, fungal growth, faster spoilage", "risk_hi": "नमी से नुकसान, फफूंद लगना, जल्दी खराब होना"},
+    "high_heat": {"shelf_life_factor": 0.6, "risk": "Accelerated spoilage, insect infestation", "risk_hi": "जल्दी सड़ना, कीड़े लगना"},
+    "moderate_rain": {"shelf_life_factor": 0.75, "risk": "Moderate moisture risk, cover crops well", "risk_hi": "हल्की नमी का खतरा, फसल को अच्छे से ढकें"},
+    "cold": {"shelf_life_factor": 1.2, "risk": "Cold can help preserve — but protect from frost", "risk_hi": "ठंड से संरक्षण अच्छा — लेकिन पाले से बचाएं"},
+    "normal": {"shelf_life_factor": 1.0, "risk": "Normal conditions — follow standard storage", "risk_hi": "सामान्य स्थिति — मानक भंडारण करें"},
+}
+
 # Approximate GPS coordinates for major mandis (lat, lon)
 # This is a subset — will expand from data
 MANDI_COORDINATES = {

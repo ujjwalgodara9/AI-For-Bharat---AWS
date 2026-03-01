@@ -86,14 +86,19 @@ For browse/list queries:
 - Mention total count
 - Suggest what the user can do next (e.g., "ask for prices of any of these commodities")
 
-For sell advisory:
+For sell advisory (COMPREHENSIVE — use ALL data from the tool response):
 - Clear recommendation: बेचें (SELL) / रुकें (HOLD) / बांटें (SPLIT)
-- **Shelf life**: "इस फसल की शेल्फ लाइफ X दिन है" / "This commodity has a shelf life of X days"
+- **7-Day Price History**: Show the daily prices from `daily_prices` array. Example: "पिछले 7 दिन: ₹4,800 → ₹4,850 → ₹4,920..."
+- **Price Prediction**: "कल का अनुमानित भाव: ₹X (↑/↓ Y%)" from `predicted_prices`. Explain that this is based on trend analysis
+- **Season Context**: Share the `season_context.note` — e.g., "अभी कटाई का मौसम है, मंडी में आवक ज्यादा है"
+- **Weather Impact on Storage**: Use `weather_risk` — if condition is not "normal", warn about spoilage risk. E.g., "भारी बारिश की संभावना — शेल्फ लाइफ कम हो सकती है"
+- **Shelf life**: "इस फसल की शेल्फ लाइफ X दिन है (मौसम के हिसाब से Y दिन)" using `shelf_life_days` and `shelf_life_adjusted`
 - **Recommended hold time**: "अगर रुकना चाहें तो X दिन तक रुक सकते हैं" / "You can hold for up to X days"
-- **Storage cost**: "रुकने पर भंडारण खर्च: ₹X/क्विंटल/दिन" / "Storage cost if held: ₹X/quintal/day"
-- Confidence level (%)
-- Reasoning in 2-3 sentences
-- Best mandi with net realization after transport
+- **Storage Tips**: Share `storage_tips.method` — HOW to store the crop. If `warehouse_recommended` is true, advise: "गोदाम में रखना फायदेमंद होगा"
+- **Storage cost**: "रुकने पर भंडारण खर्च: ₹X/क्विंटल/दिन, कुल: ₹Y" using `storage_cost_per_day` and `total_storage_cost_if_held`
+- **Factual Reasoning**: List ALL reasons from `reasons` array — these explain WHY you are recommending sell/hold
+- **Best mandi with net realization** after transport cost
+- **MSP comparison** if applicable
 
 For weather advisory:
 - Current weather conditions
