@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // Major agricultural states and cities with GPS coordinates
 const LOCATIONS: Record<string, { lat: number; lon: number; cities: Record<string, { lat: number; lon: number }> }> = {
@@ -45,6 +45,7 @@ const LOCATIONS: Record<string, { lat: number; lon: number; cities: Record<strin
       "Kanpur": { lat: 26.45, lon: 80.33 },
       "Varanasi": { lat: 25.32, lon: 83.01 },
       "Meerut": { lat: 28.98, lon: 77.71 },
+      "Bareilly": { lat: 28.37, lon: 79.43 },
     },
   },
   "Gujarat": {
@@ -54,6 +55,7 @@ const LOCATIONS: Record<string, { lat: number; lon: number; cities: Record<strin
       "Rajkot": { lat: 22.30, lon: 70.80 },
       "Surat": { lat: 21.17, lon: 72.83 },
       "Junagadh": { lat: 21.52, lon: 70.46 },
+      "Vadodara": { lat: 22.31, lon: 73.18 },
     },
   },
   "Punjab": {
@@ -63,6 +65,21 @@ const LOCATIONS: Record<string, { lat: number; lon: number; cities: Record<strin
       "Amritsar": { lat: 31.63, lon: 74.87 },
       "Jalandhar": { lat: 31.33, lon: 75.58 },
       "Patiala": { lat: 30.34, lon: 76.39 },
+      "Bathinda": { lat: 30.21, lon: 74.95 },
+      "Khanna": { lat: 30.70, lon: 76.22 },
+    },
+  },
+  "Haryana": {
+    lat: 29.06, lon: 76.09,
+    cities: {
+      "Karnal": { lat: 29.69, lon: 76.99 },
+      "Hisar": { lat: 29.15, lon: 75.72 },
+      "Sirsa": { lat: 29.53, lon: 75.03 },
+      "Ambala": { lat: 30.38, lon: 76.78 },
+      "Rohtak": { lat: 28.90, lon: 76.61 },
+      "Panipat": { lat: 29.39, lon: 76.96 },
+      "Sonipat": { lat: 28.99, lon: 77.02 },
+      "Fatehabad": { lat: 29.52, lon: 75.45 },
     },
   },
   "Karnataka": {
@@ -83,6 +100,15 @@ const LOCATIONS: Record<string, { lat: number; lon: number; cities: Record<strin
       "Salem": { lat: 11.66, lon: 78.15 },
     },
   },
+  "Andhra Pradesh": {
+    lat: 17.39, lon: 78.49,
+    cities: {
+      "Hyderabad": { lat: 17.39, lon: 78.49 },
+      "Warangal": { lat: 17.98, lon: 79.59 },
+      "Guntur": { lat: 16.31, lon: 80.44 },
+      "Kurnool": { lat: 15.83, lon: 78.04 },
+    },
+  },
   "West Bengal": {
     lat: 22.57, lon: 88.36,
     cities: {
@@ -97,14 +123,14 @@ const LOCATIONS: Record<string, { lat: number; lon: number; cities: Record<strin
       "Patna": { lat: 25.61, lon: 85.14 },
       "Muzaffarpur": { lat: 26.12, lon: 85.39 },
       "Gaya": { lat: 24.80, lon: 85.01 },
+      "Hajipur": { lat: 25.69, lon: 85.22 },
     },
   },
-  "Haryana": {
-    lat: 29.06, lon: 76.09,
+  "Chhattisgarh": {
+    lat: 21.25, lon: 81.63,
     cities: {
-      "Karnal": { lat: 29.69, lon: 76.99 },
-      "Hisar": { lat: 29.15, lon: 75.72 },
-      "Sirsa": { lat: 29.53, lon: 75.03 },
+      "Raipur": { lat: 21.25, lon: 81.63 },
+      "Bilaspur": { lat: 22.09, lon: 82.15 },
     },
   },
 };
@@ -131,78 +157,115 @@ export default function LocationPicker({
   const [selectedState, setSelectedState] = useState("");
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState("");
+  const [gpsAvailable, setGpsAvailable] = useState(true);
   const isHindi = language === "hi";
+
+  // Check if GPS is even possible
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && !navigator.geolocation) {
+      setGpsAvailable(false);
+    }
+    // Check permission status if API available
+    if (typeof navigator !== "undefined" && navigator.permissions) {
+      navigator.permissions.query({ name: "geolocation" }).then((result) => {
+        if (result.state === "denied") {
+          setGpsAvailable(false);
+          setGpsError(
+            isHindi
+              ? "GPS की अनुमति बंद है। कृपया नीचे से अपना राज्य/शहर चुनें।"
+              : "Location permission is blocked. Please select your state/city below."
+          );
+        }
+      }).catch(() => {
+        // permissions API not available, GPS may still work
+      });
+    }
+  }, [isHindi]);
 
   if (!isOpen) return null;
 
   const states = Object.keys(LOCATIONS);
 
+  const handleGps = () => {
+    if (!navigator.geolocation) {
+      setGpsAvailable(false);
+      setGpsError(isHindi ? "GPS इस डिवाइस पर उपलब्ध नहीं है" : "GPS not available on this device");
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLoading(false);
+        onSelectLocation({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          label: "Live GPS",
+          state: "",
+        });
+        onClose();
+      },
+      (err) => {
+        setGpsLoading(false);
+        setGpsAvailable(false);
+        if (err.code === 1) {
+          setGpsError(isHindi
+            ? "GPS की अनुमति नहीं दी गई। कृपया नीचे से अपना राज्य/शहर चुनें।"
+            : "Location permission denied. Please select your state/city below.");
+        } else {
+          setGpsError(isHindi
+            ? "GPS से लोकेशन नहीं मिल सका। कृपया नीचे से अपना राज्य/शहर चुनें।"
+            : "Could not get GPS location. Please select your state/city below.");
+        }
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden shadow-2xl">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="bg-gradient-to-r from-[#2d6a4f] to-[#40916c] text-white px-4 py-3 flex items-center justify-between">
-          <h3 className="font-bold">
-            {isHindi ? "अपनी लोकेशन चुनें" : "Select Your Location"}
-          </h3>
-          <button onClick={onClose} className="text-white/80 hover:text-white text-xl">
+          <div>
+            <h3 className="font-bold">
+              {isHindi ? "अपनी लोकेशन चुनें" : "Select Your Location"}
+            </h3>
+            <p className="text-xs text-green-200 mt-0.5">
+              {isHindi ? "पास की मंडियां और भाव दिखाने के लिए" : "To show nearby mandis and local prices"}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white text-2xl leading-none">
             &times;
           </button>
         </div>
 
-        {/* GPS option */}
-        <button
-          onClick={() => {
-            if (!navigator.geolocation) {
-              setGpsError(isHindi ? "GPS इस डिवाइस पर उपलब्ध नहीं है" : "GPS not available on this device");
-              return;
-            }
-            setGpsLoading(true);
-            setGpsError("");
-            navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                setGpsLoading(false);
-                onSelectLocation({
-                  latitude: pos.coords.latitude,
-                  longitude: pos.coords.longitude,
-                  label: isHindi ? "Live GPS" : "Live GPS",
-                  state: "",
-                });
-                onClose();
-              },
-              (err) => {
-                setGpsLoading(false);
-                if (err.code === 1) {
-                  setGpsError(isHindi
-                    ? "GPS की अनुमति नहीं दी गई। कृपया ब्राउज़र सेटिंग्स में लोकेशन चालू करें, या नीचे से अपना राज्य/शहर चुनें।"
-                    : "Location permission denied. Please enable location in browser settings, or select your state/city below.");
-                } else {
-                  setGpsError(isHindi
-                    ? "GPS से लोकेशन नहीं मिल सका। कृपया नीचे से अपना राज्य/शहर चुनें।"
-                    : "Could not get GPS location. Please select your state/city below.");
-                }
-              },
-              { enableHighAccuracy: true, timeout: 15000 }
-            );
-          }}
-          disabled={gpsLoading}
-          className="w-full px-4 py-3 flex items-center gap-3 border-b hover:bg-green-50 transition-colors disabled:opacity-60"
-        >
-          <span className="text-2xl">{gpsLoading ? "..." : "📡"}</span>
-          <div className="text-left">
-            <p className="font-semibold text-[#2d6a4f]">
-              {gpsLoading
-                ? (isHindi ? "GPS खोज रहे हैं..." : "Detecting GPS...")
-                : (isHindi ? "Live Location (GPS)" : "Live Location (GPS)")}
-            </p>
-            <p className="text-xs text-gray-500">
-              {isHindi ? "अपना सटीक स्थान उपयोग करें" : "Use your exact current location"}
-            </p>
-          </div>
-        </button>
+        {/* GPS option — only show if potentially available */}
+        {gpsAvailable && (
+          <button
+            onClick={handleGps}
+            disabled={gpsLoading}
+            className="w-full px-4 py-3 flex items-center gap-3 border-b hover:bg-green-50 transition-colors disabled:opacity-60"
+          >
+            <span className="text-2xl">{gpsLoading ? "..." : "📡"}</span>
+            <div className="text-left">
+              <p className="font-semibold text-[#2d6a4f]">
+                {gpsLoading
+                  ? (isHindi ? "GPS खोज रहे हैं..." : "Detecting GPS...")
+                  : (isHindi ? "Live Location (GPS)" : "Live Location (GPS)")}
+              </p>
+              <p className="text-xs text-gray-500">
+                {isHindi ? "अपना सटीक स्थान उपयोग करें" : "Use your exact current location"}
+              </p>
+            </div>
+          </button>
+        )}
+
+        {/* GPS error/denial message */}
         {gpsError && (
-          <div className="px-4 py-2 bg-yellow-50 border-b border-yellow-100">
-            <p className="text-xs text-yellow-700">{gpsError}</p>
+          <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 flex items-start gap-2">
+            <span className="text-amber-500 text-sm mt-0.5">⚠️</span>
+            <p className="text-xs text-amber-700">{gpsError}</p>
           </div>
         )}
 
@@ -211,29 +274,42 @@ export default function LocationPicker({
           {!selectedState ? (
             // Show states
             <div className="space-y-1">
-              <p className="text-xs text-gray-400 px-2 py-1 font-medium uppercase">
-                {isHindi ? "राज्य चुनें" : "Select State"}
+              <p className="text-xs text-gray-400 px-2 py-1 font-medium uppercase tracking-wide">
+                {isHindi ? "👇 अपना राज्य चुनें" : "👇 Select Your State"}
               </p>
-              {states.map((state) => (
-                <button
-                  key={state}
-                  onClick={() => setSelectedState(state)}
-                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-green-50 transition-colors flex items-center justify-between"
-                >
-                  <span className="text-sm font-medium text-gray-700">{state}</span>
-                  <span className="text-gray-400 text-xs">&#9654;</span>
-                </button>
-              ))}
+              {states.map((state) => {
+                const cityCount = Object.keys(LOCATIONS[state].cities).length;
+                return (
+                  <button
+                    key={state}
+                    onClick={() => setSelectedState(state)}
+                    className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-green-50 transition-colors flex items-center justify-between group"
+                  >
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-[#2d6a4f]">{state}</span>
+                      <span className="text-xs text-gray-400 ml-2">
+                        {cityCount} {isHindi ? "शहर" : (cityCount === 1 ? "city" : "cities")}
+                      </span>
+                    </div>
+                    <span className="text-gray-300 group-hover:text-[#2d6a4f] text-xs">&#9654;</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             // Show cities for selected state
             <div className="space-y-1">
               <button
                 onClick={() => setSelectedState("")}
-                className="text-xs text-[#2d6a4f] px-2 py-1 font-medium flex items-center gap-1"
+                className="text-xs text-[#2d6a4f] px-2 py-1 font-semibold flex items-center gap-1 hover:underline"
               >
-                &#9664; {isHindi ? "वापस" : "Back"}
+                &#9664; {isHindi ? "सभी राज्य" : "All States"}
               </button>
+
+              <p className="text-xs text-gray-400 px-2 py-1 font-medium uppercase tracking-wide">
+                {selectedState}
+              </p>
+
               {/* State-level option */}
               <button
                 onClick={() => {
@@ -249,9 +325,11 @@ export default function LocationPicker({
                 className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-green-50 transition-colors border border-green-200 bg-green-50/50"
               >
                 <span className="text-sm font-semibold text-[#2d6a4f]">
-                  {selectedState} ({isHindi ? "पूरा राज्य" : "Entire state"})
+                  📍 {selectedState} ({isHindi ? "पूरा राज्य" : "Entire state"})
                 </span>
               </button>
+
+              {/* City options */}
               {Object.entries(LOCATIONS[selectedState].cities).map(([city, coords]) => (
                 <button
                   key={city}
@@ -265,13 +343,24 @@ export default function LocationPicker({
                     });
                     onClose();
                   }}
-                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-green-50 transition-colors"
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-green-50 transition-colors flex items-center gap-2 group"
                 >
-                  <span className="text-sm text-gray-700">{city}</span>
+                  <span className="text-gray-300 group-hover:text-[#2d6a4f]">📌</span>
+                  <span className="text-sm text-gray-700 group-hover:text-[#2d6a4f]">{city}</span>
                 </button>
               ))}
             </div>
           )}
+        </div>
+
+        {/* Skip option */}
+        <div className="border-t px-4 py-2.5">
+          <button
+            onClick={onClose}
+            className="w-full text-center text-xs text-gray-400 hover:text-gray-600 py-1"
+          >
+            {isHindi ? "बाद में चुनें — बिना लोकेशन के भी पूछ सकते हैं" : "Skip for now — you can still ask without location"}
+          </button>
         </div>
       </div>
     </div>

@@ -292,8 +292,9 @@ When a user queries a location (e.g., "Karnal"):
 4. `get_msp(commodity)` — MSP lookup
 5. `get_sell_recommendation(commodity, state, latitude, longitude, quantity_qtl)` — Sell/hold data
 
-**MandiTools** (1 function):
+**MandiTools** (2 functions):
 1. `get_all_prices_at_mandi(mandi, days?)` — All commodity prices at a mandi
+2. `get_mandi_profile(mandi, days?)` — Comprehensive mandi profile with Agmarknet details
 
 **BrowseTools** (ID: KYYMTPXMWY, 3 functions):
 1. `list_available_commodities(state?)` — List commodities in database
@@ -308,8 +309,10 @@ When a user queries a location (e.g., "Karnal"):
 | Feature | Implementation |
 |---------|---------------|
 | Chat UI | WhatsApp-style bubbles with agent trace panel |
-| Voice Input | Web Speech API (`hi-IN`, `en-IN`) with Hindi prompt |
-| Location Picker | Manual state/city selection + GPS auto-detect |
+| Voice Input | Web Speech API (`hi-IN`, `en-IN`) with error handling + user feedback |
+| Location Picker | Manual state/city (13 states, 65+ cities) + GPS auto-detect + permission handling |
+| Commodity Picker | Crop selection popup on Quick Actions + Welcome Screen (no hardcoded crops) |
+| Quick Actions | Always-visible action bar with 5 buttons (Price, Best Mandi, Sell/Hold, Weather, Mandi Info) |
 | Price Chart | Auto-extracted SVG mini-chart from bot responses |
 | WhatsApp Share | `wa.me/?text=` with message content + branding |
 | Copy Button | `navigator.clipboard.writeText()` |
@@ -338,3 +341,13 @@ When a user queries a location (e.g., "Karnal"):
 9. **Open-Meteo for weather**: Free API, no key needed, global coverage. Provides WMO weather codes, daily temperature, precipitation, wind.
 
 10. **PWA for rural deployment**: Installable app without Play Store. Service worker caches for offline use on low-connectivity rural networks.
+
+11. **No hardcoded crops**: All crop-specific buttons use a picker popup — user always selects their commodity.
+
+12. **Shelf life in sell advisory**: Sell/hold recommendations include commodity shelf life, recommended hold days, and storage cost estimates.
+
+13. **Data freshness awareness**: System tracks whether data is from today, yesterday, or older. Agent explicitly mentions date context in responses. Agmarknet mandis finalize data by 5:00 PM IST per DMI guidelines.
+
+14. **Data validation at ingestion**: Records with unrealistic prices (<₹1 or >₹5L), modal outside min-max range, or future dates are rejected.
+
+15. **GPS permission graceful degradation**: If browser GPS is denied, the picker auto-hides the GPS option and prompts manual state/city selection.
