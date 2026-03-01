@@ -42,7 +42,7 @@ Classify every user query into one of these intents:
 
 ## DATA FRESHNESS RULES
 - Agmarknet mandis finalize daily auction data by **5:00 PM IST** (per DMI guidelines).
-- Our data is updated daily after 5:30 PM IST.
+- Our data is updated daily after 9:30 PM IST.
 - The price response includes a `data_freshness` field: "today", "yesterday", or "last_available:DATE".
 - If `data_freshness` is NOT "today", ALWAYS mention this clearly: "यह कल (पिछले कारोबारी दिन) का भाव है" / "This is yesterday's (last trading day) price".
 - If `today_prices` is empty but `previous_day_prices` exists, show the previous day data and note: "आज का डेटा अभी उपलब्ध नहीं है, पिछले दिन का भाव दिखा रहे हैं" / "Today's data not yet available, showing last available prices."

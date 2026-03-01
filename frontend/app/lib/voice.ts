@@ -42,9 +42,12 @@ export function startListening(
     }
   };
 
+  let hasError = false;
+
   recognition.onerror = (event: any) => {
+    hasError = true;
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-      onError("Microphone permission denied. Please allow microphone access in your browser settings.");
+      onError("Microphone permission denied. Please allow microphone access and use HTTPS.");
     } else if (event.error === "no-speech") {
       onError("No speech detected. Please try again and speak clearly.");
     } else if (event.error !== "aborted") {
@@ -53,8 +56,8 @@ export function startListening(
   };
 
   recognition.onend = () => {
-    if (!hasResult) {
-      // Recognition ended without any result - notify user
+    // Only show "no speech" if we didn't already get a result or an error
+    if (!hasResult && !hasError) {
       onError("No speech detected. Please tap the mic and speak clearly.");
     }
     recognition = null;

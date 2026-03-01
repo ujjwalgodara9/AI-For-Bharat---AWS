@@ -665,7 +665,7 @@ Madhya Pradesh, Rajasthan, Maharashtra, Uttar Pradesh, Gujarat, Punjab, Karnatak
 
 1. **Source**: data.gov.in Agmarknet API (resource ID: `9ef84268-d588-465a-a308-a864a43d0070`).
 2. **Ingestion**: `mandimitra-data-ingestion` Lambda, triggered by EventBridge schedule.
-3. **Schedule**: Daily at 5:30 PM IST (12:00 PM UTC) -- 30 minutes after Agmarknet finalization.
+3. **Schedule**: Daily at 9:30 PM IST (4:00 PM UTC) -- ensuring all Agmarknet data is fully propagated and available.
 4. **Process**: For each of 15 commodities x 9 states:
    - Fetches from data.gov.in API with state and commodity filters.
    - Transforms records: parses dates (dd/mm/yyyy to ISO), validates prices (modal between min/max with 5% tolerance, positive, realistic range Rs.1 to Rs.5,00,000, not future-dated).
@@ -705,9 +705,9 @@ The orchestrator prompt instructs the agent:
 |-------------|-------|
 | Morning | Mandi auctions begin |
 | By 5:00 PM | Agmarknet finalizes daily data (per DMI guidelines) |
-| 5:30 PM | MandiMitra ingestion Lambda runs |
-| 5:30 PM+ | Today's data becomes available in queries |
-| Before 5:30 PM | Queries return yesterday's data with freshness note |
+| 9:30 PM | MandiMitra ingestion Lambda runs |
+| 9:30 PM+ | Today's data becomes available in queries |
+| Before 9:30 PM | Queries return yesterday's data with freshness note |
 
 ---
 
