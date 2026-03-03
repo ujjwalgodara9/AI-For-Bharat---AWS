@@ -213,7 +213,7 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
       <div className="flex items-center gap-2 text-xs text-gray-400">
         <span className="w-2 h-2 bg-green-400 rounded-full" />
         {isHindi
-          ? "डेटा स्रोत: Agmarknet (data.gov.in) — प्रतिदिन शाम 5:30 बजे अपडेट"
+          ? "डेटा स्रोत: Agmarknet (data.gov.in) — प्रतिदिन रात 9:30 बजे अपडेट"
           : "Data source: Agmarknet (data.gov.in) — Updated daily by 9:30 PM IST"}
       </div>
 

@@ -1,0 +1,26 @@
+2026-03-02 06:32:35,145 INFO Found credentials in shared credentials file: ~/.aws/credentials
+2026-03-02 06:32:36,073 INFO ======================================================================
+2026-03-02 06:32:36,074 INFO MandiMitra India-Scale Data Fetcher
+2026-03-02 06:32:36,074 INFO Strategy: STATE+DATE query (captures all commodities)
+2026-03-02 06:32:36,075 INFO Dates: ['02/03/2026', '01/03/2026', '28/02/2026', '27/02/2026', '26/02/2026', '25/02/2026', '24/02/2026']
+2026-03-02 06:32:36,075 INFO States: 21 — Madhya Pradesh, Rajasthan, Maharashtra, Uttar Pradesh, Gujarat, Karnataka, Punjab, Haryana, Andhra Pradesh, Telangana, Tamil Nadu, Bihar, West Bengal, Chhattisgarh, Odisha, Jharkhand, Kerala, Assam, Himachal Pradesh, Uttarakhand, Jammu and Kashmir
+2026-03-02 06:32:36,076 INFO Total query chains: 147
+2026-03-02 06:32:36,077 INFO Max records per chain: 10000
+2026-03-02 06:32:36,077 INFO ======================================================================
+2026-03-02 06:32:38,778 INFO DynamoDB start count: 5,191 items
+2026-03-02 06:32:42,281 INFO [18/147] Kerala                    | 02/03/2026 |    1 records
+2026-03-02 06:32:46,544 INFO [40/147] Kerala                    | 01/03/2026 |    1 records
+2026-03-02 06:32:50,741 INFO [61/147] Kerala                    | 28/02/2026 |    1 records
+2026-03-02 06:32:53,803 WARNING Rate limited on Himachal Pradesh/27/02/2026 offset=0. Sleeping 60s...
+2026-03-02 06:32:54,123 WARNING Rate limited on Uttarakhand/27/02/2026 offset=0. Sleeping 60s...
+2026-03-02 06:32:54,132 INFO [81/147] Kerala                    | 27/02/2026 |    1 records
+2026-03-02 06:32:54,464 WARNING Rate limited on Jammu and Kashmir/27/02/2026 offset=0. Sleeping 60s...
+2026-03-02 06:33:54,246 WARNING Rate limited on Himachal Pradesh/27/02/2026 offset=0. Sleeping 60s...
+2026-03-02 06:33:54,488 WARNING Rate limited on Uttarakhand/27/02/2026 offset=0. Sleeping 60s...
+2026-03-02 06:33:54,889 WARNING Rate limited on Jammu and Kashmir/27/02/2026 offset=0. Sleeping 60s...
+2026-03-02 06:35:20,781 WARNING Error Haryana/25/02/2026 offset=0: <urlopen error [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond>
+2026-03-02 06:35:28,244 INFO 
+======================================================================
+2026-03-02 06:35:28,244 INFO DONE! Written this run: 4
+2026-03-02 06:35:28,245 INFO DynamoDB total: 5,191 → 5,192 (+1)
+2026-03-02 06:35:28,298 INFO ======================================================================

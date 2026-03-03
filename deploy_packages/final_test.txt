@@ -1,0 +1,27 @@
+
+=== 1. Price Check ===
+Q: MP mein wheat ka rate kya hai?
+FAIL (empty) (6.1s, 0 chars)
+
+
+=== 2. Best Mandi ===
+Q: onion bechna hai maharashtra mein, kaunsi mandi best hai?
+PASS (6.1s, 172 chars)
+किसान भाई, महाराष्ट्र में प्याज बेचने के लिए सबसे अच्छी मंडी पुणे (मोशी) एपीएमसी है। यहाँ का मौजूदा भाव ₹400 से ₹1000 प्रति क्विंटल के बीच है। स्रोत: Agmarknet, 26-Feb-2026
+
+=== 3. Sell Advisory ===
+Q: cotton ka stock hai, bechun ya ruk jaaun? Gujarat mein hoon
+PASS (7.0s, 241 chars)
+किसान भाई, आपकी फसल के लिए अभी बेचने की सलाह है। कपास का मौजूदा भाव ₹2760/क्विंटल है, जो पिछले दिनों की तुलना में 14.02% गिरा है। MSP ₹7121/क्विंटल है, जो मौजूदा भाव से काफी ऊँचा है। इसलिए, अभी बेचने की सलाह है। स्रोत: Agmarknet, 25-Feb-2026
+
+=== 4. Negotiation Brief ===
+Q: rice bechne Punjab mein jaa raha hun, price card do
+FAIL (empty) (5.6s, 0 chars)
+
+
+
+=== SUMMARY ===
+1. Price Check: FAIL (empty) (6.1s, 0 chars)
+2. Best Mandi: PASS (6.1s, 172 chars)
+3. Sell Advisory: PASS (7.0s, 241 chars)
+4. Negotiation Brief: FAIL (empty) (5.6s, 0 chars)

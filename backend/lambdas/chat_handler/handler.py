@@ -4,6 +4,7 @@ Receives user messages, invokes Bedrock Agent, returns response with trace.
 Includes LangFuse tracing for observability.
 """
 import os
+import re
 import json
 import time
 import uuid
@@ -236,7 +237,36 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None,
         except Exception as retry_err:
             logger.error(f"Retry failed: {retry_err}")
 
+    full_response = clean_agent_response(full_response)
     return full_response, agent_traces
+
+
+def clean_agent_response(text: str) -> str:
+    """
+    Remove internal agent communication XML artifacts from the final response.
+    Sub-agents sometimes leak XML tool call formats into their output.
+    Examples:
+      <AgentCommunication__sendMessage recipient="User" content="..." />
+      <answer>actual text</answer>
+    """
+    if not text:
+        return text
+
+    # Extract content from AgentCommunication XML tags
+    match = re.search(
+        r'<AgentCommunication__sendMessage[^>]+content="([^"]+)"[^>]*/?>',
+        text, re.DOTALL
+    )
+    if match:
+        return match.group(1).strip()
+
+    # Strip any other XML/HTML-like tags but keep content
+    # Remove self-closing XML tags: <TagName ... />
+    text = re.sub(r'<[A-Za-z][A-Za-z0-9_:]*[^>]*/>', '', text)
+    # Remove opening/closing XML tags: <TagName> ... </TagName>
+    text = re.sub(r'</?[A-Za-z][A-Za-z0-9_:]*[^>]*>', '', text)
+
+    return text.strip()
 
 
 def extract_trace(trace_data: dict) -> dict:

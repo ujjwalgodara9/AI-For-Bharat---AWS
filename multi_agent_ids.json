@@ -1,0 +1,18 @@
+{
+  "price_intelligence": {
+    "agent_id": "CAEJ90IYS6",
+    "alias_id": "7YU2OMSRBQ"
+  },
+  "sell_advisory": {
+    "agent_id": "CCYSN80MGN",
+    "alias_id": "HPMZYLQZU3"
+  },
+  "negotiation": {
+    "agent_id": "UZRXDX75NR",
+    "alias_id": "TFQ24DRCOW"
+  },
+  "weather": {
+    "agent_id": "XE43VNHO3T",
+    "alias_id": "YUSEVJPMWJ"
+  }
+}

@@ -1,0 +1,1 @@
+{"messageVersion": "1.0", "response": {"actionGroup": "PriceIntelligenceTools", "function": "query_mandi_prices", "functionResponse": {"responseBody": {"TEXT": {"body": "{\"prices\": [], \"trend\": {\"trend\": \"no_data\", \"data_points\": 0}, \"msp\": {\"commodity\": \"Wheat\", \"msp\": 2275, \"year\": \"2025-26\", \"has_msp\": true}, \"record_count\": 0}"}}}}}

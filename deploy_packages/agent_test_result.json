@@ -1,0 +1,11 @@
+{
+  "response": "किसान भाई, माफ़ करें, सोयाबीन के लिए मध्य प्रदेश में अभी कोई डेटा उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।",
+  "trace_count": 9,
+  "traces_summary": [
+    "{'agentAliasId': 'BM6JROSWME', 'agentId': 'GDSWGCDJIX', 'agentVersion': '1', 'callerChain': [{'agentAliasArn': 'arn:aws:bedrock:us-east-1:471112620976:agent-alias/GDSWGCDJIX/BM6JROSWME'}], 'eventTime': datetime.datetime(2026, 2, 27, 15, 2, 14, 150487, tzinfo=tzutc()), 'sessionId': 'test-session-002'",
+    "{'agentAliasId': 'BM6JROSWME', 'agentId': 'GDSWGCDJIX', 'agentVersion': '1', 'callerChain': [{'agentAliasArn': 'arn:aws:bedrock:us-east-1:471112620976:agent-alias/GDSWGCDJIX/BM6JROSWME'}], 'eventTime': datetime.datetime(2026, 2, 27, 15, 2, 15, 525794, tzinfo=tzutc()), 'sessionId': 'test-session-002'",
+    "{'agentAliasId': 'BM6JROSWME', 'agentId': 'GDSWGCDJIX', 'agentVersion': '1', 'callerChain': [{'agentAliasArn': 'arn:aws:bedrock:us-east-1:471112620976:agent-alias/GDSWGCDJIX/BM6JROSWME'}], 'eventTime': datetime.datetime(2026, 2, 27, 15, 2, 15, 525952, tzinfo=tzutc()), 'sessionId': 'test-session-002'",
+    "{'agentAliasId': 'BM6JROSWME', 'agentId': 'GDSWGCDJIX', 'agentVersion': '1', 'callerChain': [{'agentAliasArn': 'arn:aws:bedrock:us-east-1:471112620976:agent-alias/GDSWGCDJIX/BM6JROSWME'}], 'eventTime': datetime.datetime(2026, 2, 27, 15, 2, 15, 579038, tzinfo=tzutc()), 'sessionId': 'test-session-002'",
+    "{'agentAliasId': 'BM6JROSWME', 'agentId': 'GDSWGCDJIX', 'agentVersion': '1', 'callerChain': [{'agentAliasArn': 'arn:aws:bedrock:us-east-1:471112620976:agent-alias/GDSWGCDJIX/BM6JROSWME'}], 'eventTime': datetime.datetime(2026, 2, 27, 15, 2, 15, 579038, tzinfo=tzutc()), 'sessionId': 'test-session-002'"
+  ]
+}

@@ -285,7 +285,7 @@ def _get_season_context(commodity: str) -> dict:
     season = CROP_SEASONS.get(commodity, {})
 
     if not season:
-        return {"is_harvest": False, "is_sowing": False, "season_type": "Unknown", "note": "Season data not available"}
+        return {"is_harvest": False, "is_sowing": False, "season_type": "Unknown", "note": "Season data not available", "note_hi": "मौसम डेटा उपलब्ध नहीं"}
 
     is_harvest = current_month in season.get("harvest", [])
     is_sowing = current_month in season.get("sowing", [])
@@ -610,14 +610,18 @@ def list_available_states() -> list:
 
 
 def list_commodities_with_translations(state: str = None) -> list:
-    """Return commodities available in DB for a state, with Hindi translations."""
+    """Return commodities available in DB for a state, with Hindi translations.
+    Only includes commodities we have proper translations for (tracked crops)."""
     commodities = list_available_commodities(state)
     result = []
+    seen = set()
     for c in commodities:
-        result.append({
-            "en": c,
-            "hi": COMMODITY_TRANSLATIONS.get(c, c),
-        })
+        if c in COMMODITY_TRANSLATIONS and c not in seen:
+            seen.add(c)
+            result.append({
+                "en": c,
+                "hi": COMMODITY_TRANSLATIONS[c],
+            })
     return result
 
 

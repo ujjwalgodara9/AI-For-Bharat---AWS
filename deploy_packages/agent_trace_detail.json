@@ -1,0 +1,36 @@
+{
+  "response": "किसान भाई, माफ़ करें, सोयाबीन के लिए मध्य प्रदेश में अभी कोई डेटा उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।",
+  "trace_details": [
+    {
+      "type": "rationale",
+      "text": "The User's goal is to know the current price of soyabean in Madhya Pradesh.\n(2) No additional information has been provided.\n(3) The best action plan is to query the current price of soyabean in Madhya Pradesh.\n(4) All steps in the action plan are complete.\n(5) The available action to execute the next step is PriceIntelligenceTools__query_mandi_prices.\n(6) The required information for this action is the commodity name and state.\n(7) I have everything I need to proceed."
+    },
+    {
+      "type": "invocation",
+      "function": "query_mandi_prices",
+      "parameters": [
+        {
+          "name": "commodity",
+          "type": "string",
+          "value": "soyabean"
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "value": "Madhya Pradesh"
+        }
+      ]
+    },
+    {
+      "type": "observation",
+      "output": "{\"prices\": [], \"trend\": {\"trend\": \"no_data\", \"data_points\": 0}, \"msp\": {\"commodity\": \"soyabean\", \"msp\": null, \"year\": \"2025-26\", \"has_msp\": false}, \"record_count\": 0}"
+    },
+    {
+      "type": "rationale",
+      "text": "The User's goal is to know the current price of soyabean in Madhya Pradesh.\n(2) The tool result indicates that there is no data available for soyabean prices in Madhya Pradesh.\n(3) The best action plan is to inform the User that there is no data available.\n(4) All steps in the action plan are complete.\n(5) No further action is needed.\n(6) I have everything I need to proceed."
+    },
+    {
+      "type": "observation"
+    }
+  ]
+}
