@@ -77,3 +77,80 @@ export function stopListening(): void {
     recognition = null;
   }
 }
+
+function getEnglishIndiaVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  return (
+    voices.find((v) => v.name === "Rishi") ||
+    voices.find((v) => v.name === "Veena") ||
+    voices.find((v) => v.lang === "en-IN") ||
+    voices.find((v) => v.name.toLowerCase().includes("india")) ||
+    voices.find((v) => v.lang.startsWith("en")) ||
+    null
+  );
+}
+
+function getPreferredVoice(language: string): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return null;
+
+  if (language === "hi") {
+    const hiVoice =
+      voices.find((v) => v.name === "Lekha") ||
+      voices.find((v) => v.lang === "hi-IN") ||
+      voices.find((v) => v.lang.startsWith("hi")) ||
+      null;
+    return hiVoice ?? getEnglishIndiaVoice(voices);
+  } else {
+    return getEnglishIndiaVoice(voices);
+  }
+}
+
+export function speak(text: string, language: string, onEnd?: () => void): void {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+
+  const doSpeak = () => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = getPreferredVoice(language);
+
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+      utterance.rate = voice.lang.startsWith("hi") ? 0.82 : 0.88;
+      utterance.pitch = voice.lang.startsWith("hi") ? 1.1 : 1.0;
+    }
+    utterance.volume = 1.0;
+
+    if (onEnd) {
+      utterance.onend = onEnd;
+      utterance.onerror = onEnd;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) {
+    const handler = () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", handler);
+      doSpeak();
+    };
+    window.speechSynthesis.addEventListener("voiceschanged", handler);
+    setTimeout(() => {
+      window.speechSynthesis.removeEventListener("voiceschanged", handler);
+      doSpeak();
+    }, 500);
+  } else {
+    doSpeak();
+  }
+}
+
+export function stopSpeaking(): void {
+  if (typeof window !== "undefined" && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+export function isSpeakingSupported(): boolean {
+  return typeof window !== "undefined" && "speechSynthesis" in window;
+}
