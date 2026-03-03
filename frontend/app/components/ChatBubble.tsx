@@ -1,20 +1,28 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { ChatMessage, AgentTraceStep } from "../lib/api";
 import PriceChart, { extractPriceData } from "./PriceChart";
+import { speak, stopSpeaking, isSpeakingSupported } from "../lib/voice";
 
 interface ChatBubbleProps {
   message: ChatMessage;
+  language?: string;
 }
 
-export default function ChatBubble({ message }: ChatBubbleProps) {
+export default function ChatBubble({ message, language = "en" }: ChatBubbleProps) {
   const [showTrace, setShowTrace] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [ttsSupported, setTtsSupported] = useState(false);
   const isUser = message.role === "user";
   const priceData = useMemo(
     () => (!isUser ? extractPriceData(message.content) : null),
     [isUser, message.content]
   );
+
+  useEffect(() => {
+    setTtsSupported(isSpeakingSupported());
+  }, []);
 
   const handleWhatsAppShare = () => {
     const text = encodeURIComponent(
@@ -25,6 +33,16 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
+  };
+
+  const handleSpeak = () => {
+    if (isSpeaking) {
+      stopSpeaking();
+      setIsSpeaking(false);
+    } else {
+      speak(message.content, language, () => setIsSpeaking(false));
+      setIsSpeaking(true);
+    }
   };
 
   return (
@@ -40,21 +58,37 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
           </div>
         )}
 
-        {/* Message bubble */}
-        <div
-          className={`rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed shadow-sm ${
-            isUser
-              ? "bg-[#2d6a4f] text-white rounded-br-sm"
-              : "bg-white text-gray-800 rounded-bl-sm border border-gray-100"
-          }`}
-        >
-          {/* Render message with line breaks */}
-          {message.content.split("\n").map((line, i) => (
-            <span key={i}>
-              {line}
-              {i < message.content.split("\n").length - 1 && <br />}
-            </span>
-          ))}
+        {/* Message bubble + TTS button side by side */}
+        <div className="flex items-end gap-1.5">
+          <div
+            className={`rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed shadow-sm ${
+              isUser
+                ? "bg-[#2d6a4f] text-white rounded-br-sm"
+                : "bg-white text-gray-800 rounded-bl-sm border border-gray-100"
+            }`}
+          >
+            {message.content.split("\n").map((line, i) => (
+              <span key={i}>
+                {line}
+                {i < message.content.split("\n").length - 1 && <br />}
+              </span>
+            ))}
+          </div>
+
+          {/* TTS button — right of bubble, bot messages only */}
+          {!isUser && ttsSupported && (
+            <button
+              onClick={handleSpeak}
+              title={isSpeaking ? "Stop speaking" : "Read aloud"}
+              className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center shadow-sm border transition-colors ${
+                isSpeaking
+                  ? "bg-red-50 border-red-200 text-red-500 hover:bg-red-100"
+                  : "bg-white border-gray-200 text-gray-400 hover:text-[#2d6a4f] hover:border-[#2d6a4f]"
+              }`}
+            >
+              <span className="text-sm leading-none">{isSpeaking ? "⏹" : "🔊"}</span>
+            </button>
+          )}
         </div>
 
         {/* Price mini-chart */}
@@ -65,7 +99,6 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
         {/* Action buttons for bot messages */}
         {!isUser && (
           <div className="flex items-center gap-2 mt-1.5">
-            {/* Timestamp */}
             <span className="text-[10px] text-gray-400">
               {message.timestamp.toLocaleTimeString("en-IN", {
                 hour: "2-digit",
@@ -73,7 +106,6 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
               })}
             </span>
 
-            {/* Copy button */}
             <button
               onClick={handleCopy}
               className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
@@ -82,7 +114,6 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
               Copy
             </button>
 
-            {/* WhatsApp share */}
             <button
               onClick={handleWhatsAppShare}
               className="flex items-center gap-0.5 text-[10px] text-green-600 hover:text-green-700 font-medium transition-colors"
@@ -134,29 +165,50 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
 }
 
 function TraceStep({ step, index }: { step: AgentTraceStep; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+
   const icons: Record<string, string> = {
     preprocessing: "🧠",
     reasoning: "💭",
     tool_call: "🔧",
     observation: "📊",
+    model_output: "✨",
   };
+
+  const inputStr =
+    step.input != null && typeof step.input === "object"
+      ? JSON.stringify(step.input)
+      : null;
+
+  const outputTruncated = !!(step.output && step.output.length > 180);
+  const inputTruncated = !!(inputStr && inputStr.length > 180);
+  const showExpandButton = outputTruncated || inputTruncated;
 
   return (
     <div className="flex items-start gap-2 py-1.5 border-b border-gray-100 last:border-0">
       <span className="text-sm">{icons[step.type] || "📋"}</span>
-      <div>
+      <div className="flex-1 min-w-0">
         <span className="font-medium text-gray-700">
           Step {index + 1}: {step.step}
         </span>
         {step.output && (
-          <p className="text-gray-500 mt-0.5 line-clamp-2">{step.output}</p>
-        )}
-        {step.input != null && typeof step.input === "object" ? (
-          <p className="text-gray-400 mt-0.5">
-            {String(JSON.stringify(step.input)).slice(0, 100)}
-            {String(JSON.stringify(step.input)).length > 100 ? "..." : ""}
+          <p className={`text-gray-500 mt-0.5 break-words ${expanded ? "whitespace-pre-wrap" : "line-clamp-3"}`}>
+            {step.output}
           </p>
-        ) : null}
+        )}
+        {inputStr && (
+          <p className={`text-gray-400 mt-0.5 break-words ${expanded ? "whitespace-pre-wrap" : "line-clamp-3"}`}>
+            {inputStr}
+          </p>
+        )}
+        {showExpandButton && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-[10px] text-[#2d6a4f] hover:text-[#40916c] mt-0.5"
+          >
+            {expanded ? "▲ show less" : "▼ show more"}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -80,6 +80,7 @@ export default function Home() {
       role: "user",
       content,
       timestamp: new Date(),
+      language,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -117,6 +118,7 @@ export default function Home() {
         role: "assistant",
         content: response.response,
         timestamp: new Date(),
+        language: response.language || language,
         agentTrace: response.agent_trace,
       };
 
@@ -130,6 +132,7 @@ export default function Home() {
             ? "माफ़ करें, कुछ गड़बड़ हो गई। कृपया दोबारा पूछें।"
             : "Sorry, something went wrong. Please try again.",
         timestamp: new Date(),
+        language,
       };
       setMessages((prev) => [...prev, errorMessage]);
       console.error("Chat error:", error);
@@ -171,7 +174,7 @@ export default function Home() {
         ) : (
           <div className="py-4">
             {messages.map((msg) => (
-              <ChatBubble key={msg.id} message={msg} />
+              <ChatBubble key={msg.id} message={msg} language={msg.language ?? language} />
             ))}
             {isLoading && <TypingIndicator />}
             <div ref={chatEndRef} />
