@@ -1,7 +1,21 @@
 # MandiMitra — Team Handoff & Status
 
-**Last Updated:** 25 Feb 2026
+**Last Updated:** 3 Mar 2026
 **Deadline:** 1 Mar 2026 (internal) / 4 Mar 2026 (hackathon)
+
+---
+
+## BUG FIXES (3 Mar 2026) ✅
+
+All 5 bugs found during code review have been fixed and verified (Python syntax + TypeScript compile — all pass).
+
+| # | File | Bug | Fix |
+|---|------|-----|-----|
+| 1 | `backend/lambdas/shared/weather_utils.py:26` | `if latitude and longitude:` fails when coords are `0.0` (falsy in Python) | Changed to `if latitude is not None and longitude is not None:` |
+| 2 | `backend/lambdas/shared/dynamodb_utils.py:171` | `get_nearby_mandis` called `query_prices(state="")` → DynamoDB PK `"WHEAT#"` never matches | Now uses `query_mandi_prices()` (MANDI-INDEX GSI) + filters by commodity — correctly returns prices |
+| 3 | `frontend/app/lib/api.ts:17` | `AgentTraceStep` type missing `"model_output"` variant — TypeScript error on real API responses | Added `"model_output"` to the type union |
+| 4 | `.env:29` | `LANGFUSE_BASE_URL` defined in `.env` but `chat_handler/handler.py` reads `LANGFUSE_HOST` — custom host ignored | Renamed to `LANGFUSE_HOST` in `.env` and `.env.example` |
+| 5 | `backend/lambdas/data_ingestion/handler.py` | `days_back` parameter accepted but never used — always fetched all historical data | Refactored to loop per day, passing `filters[arrival_date]` to Agmarknet API per day |
 
 ---
 
