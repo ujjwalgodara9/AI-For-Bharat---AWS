@@ -105,8 +105,29 @@ def handler(event, context):
 
 
 def fetch_from_agmarknet(commodity: str, state: str, days_back: int = 1) -> list:
-    """Fetch commodity price data from data.gov.in API."""
+    """Fetch commodity price data from data.gov.in API.
+
+    Fetches data for each of the last `days_back` days individually,
+    since the Agmarknet API supports exact date filtering (not range).
+    """
     all_records = []
+
+    # Build the list of dates to fetch (today and past days_back-1 days)
+    target_dates = [
+        (datetime.utcnow() - timedelta(days=i)).strftime("%d/%m/%Y")
+        for i in range(days_back)
+    ]
+
+    for target_date in target_dates:
+        records = _fetch_single_date(commodity, state, target_date)
+        all_records.extend(records)
+
+    return all_records
+
+
+def _fetch_single_date(commodity: str, state: str, arrival_date: str) -> list:
+    """Fetch records for a single date from Agmarknet API with pagination."""
+    records = []
     offset = 0
     limit = 500
 
@@ -117,6 +138,7 @@ def fetch_from_agmarknet(commodity: str, state: str, days_back: int = 1) -> list
         "offset": offset,
         "filters[state.keyword]": state,
         "filters[commodity]": commodity,
+        "filters[arrival_date]": arrival_date,
     }
 
     while True:
@@ -130,26 +152,26 @@ def fetch_from_agmarknet(commodity: str, state: str, days_back: int = 1) -> list
             with urllib.request.urlopen(req, timeout=30) as response:
                 data = json.loads(response.read().decode("utf-8"))
         except Exception as e:
-            logger.error(f"API request failed for {commodity}/{state} offset={offset}: {e}")
+            logger.error(f"API request failed for {commodity}/{state} date={arrival_date} offset={offset}: {e}")
             break
 
-        records = data.get("records", [])
-        if not records:
+        page_records = data.get("records", [])
+        if not page_records:
             break
 
-        all_records.extend(records)
+        records.extend(page_records)
 
-        # Check if there are more pages
+        # Paginate until all records are fetched
         total = data.get("total", 0)
         offset += limit
         if offset >= total:
             break
 
-        # Safety: don't fetch more than 2000 records per commodity/state
+        # Safety cap: max 2000 records per commodity/state/date
         if offset >= 2000:
             break
 
-    return all_records
+    return records
 
 
 def write_to_dynamodb(table, records: list, commodity: str, state: str) -> int:

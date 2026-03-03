@@ -2,11 +2,18 @@
 
 Step-by-step guide to create MandiMitra's multi-agent system in AWS Console.
 
+> **Last Updated:** 3 Mar 2026
+> **Status:** All Lambdas deployed. Bug fixes applied (weather coords, mandi price lookup, date ingestion).
+
 ## Prerequisites
 
 - Bedrock model access enabled for **Claude 3.5 Sonnet** and **Claude 3 Haiku** in `us-east-1`
 - SAM stack deployed (DynamoDB table + Lambda functions exist)
 - Price Query Lambda ARN from SAM outputs
+
+> **Note on Alias IDs:** After creating an agent alias (Step X → "Create Alias `v1`"), copy the **Alias ID** (not the Agent ID).
+> The default test alias `TSTALIASID` points to the working draft — fine for testing but unstable for demos.
+> Always use a named alias (e.g., `v1`) for consistent behaviour.
 
 ---
 
@@ -149,10 +156,18 @@ Add these to your `.env`:
 
 ```
 BEDROCK_AGENT_ID=<orchestrator-agent-id>
-BEDROCK_AGENT_ALIAS_ID=<orchestrator-alias-id>
+BEDROCK_AGENT_ALIAS_ID=<orchestrator-alias-id>   # Use the v1 alias ID, NOT TSTALIASID
+
+# LangFuse — MUST use LANGFUSE_HOST (not LANGFUSE_BASE_URL)
+LANGFUSE_HOST=https://cloud.langfuse.com
+LANGFUSE_PUBLIC_KEY=<your-key>
+LANGFUSE_SECRET_KEY=<your-key>
 ```
 
 Update the Chat Handler Lambda environment variables in AWS Console or re-deploy with SAM.
+
+> **Common mistake:** Using `LANGFUSE_BASE_URL` instead of `LANGFUSE_HOST` — the chat handler
+> reads `os.environ.get("LANGFUSE_HOST")` so the URL must be set under that exact key.
 
 ---
 

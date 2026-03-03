@@ -23,7 +23,7 @@ WMO_CODES = {
 def get_weather_advisory(location: str, latitude: float = None, longitude: float = None) -> dict:
     """Get 5-day weather forecast + agricultural advisory for a location."""
     # Resolve coordinates
-    if latitude and longitude:
+    if latitude is not None and longitude is not None:
         lat, lon = latitude, longitude
     elif location.upper() in MANDI_COORDINATES:
         lat, lon = MANDI_COORDINATES[location.upper()]

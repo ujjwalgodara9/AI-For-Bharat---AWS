@@ -14,7 +14,7 @@ export interface ChatMessage {
 }
 
 export interface AgentTraceStep {
-  type: "preprocessing" | "reasoning" | "tool_call" | "observation";
+  type: "preprocessing" | "reasoning" | "tool_call" | "observation" | "model_output";
   step: string;
   input?: unknown;
   output?: string;
