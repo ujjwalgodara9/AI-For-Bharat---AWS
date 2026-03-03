@@ -166,11 +166,16 @@ def get_nearby_mandis(lat: float, lon: float, radius_km: float, commodity: str =
                 "latitude": m_lat,
                 "longitude": m_lon,
             }
-            # Optionally fetch latest price for this mandi
+            # Optionally fetch latest price for this mandi using MANDI-INDEX GSI
             if commodity:
-                prices = query_prices(commodity, state="", mandi=mandi_name, days=3)
-                if prices:
-                    latest = max(prices, key=lambda x: x.get("SK", ""))
+                mandi_prices = query_mandi_prices(mandi_name, days=3)
+                # Filter to the specific commodity
+                commodity_prices = [
+                    p for p in mandi_prices
+                    if p.get("commodity", "").upper() == commodity.upper()
+                ]
+                if commodity_prices:
+                    latest = max(commodity_prices, key=lambda x: x.get("arrival_date", ""))
                     entry["modal_price"] = latest.get("modal_price")
                     entry["min_price"] = latest.get("min_price")
                     entry["max_price"] = latest.get("max_price")
