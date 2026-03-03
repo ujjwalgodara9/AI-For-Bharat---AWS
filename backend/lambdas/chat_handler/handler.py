@@ -207,9 +207,30 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None,
 
     logger.info(f"Response parts count: {len(response_parts)}, sizes: {[len(p) for p in response_parts]}")
     full_response = "".join(response_parts)
-    logger.info(f"Full response length: {len(full_response)}")
+    logger.info(f"Full response length: {len(full_response)}, preview: {repr(full_response[:80])}")
 
-    # Fallback 1: if chunk bytes were empty, use answer extracted from traces
+    # Strip "Bot:" or "Bot: " prefix injected by Bedrock multi-agent framework
+    if full_response.startswith("Bot:"):
+        full_response = full_response[4:].lstrip(" \n").strip()
+        logger.info(f"Stripped 'Bot:' prefix. New length: {len(full_response)}")
+
+    # Detect leaked internal reasoning — Bedrock sometimes streams only the thinking prefix
+    # e.g. "Thought:", "I need to", "(1)" — these are not valid user-facing responses
+    INTERNAL_PREFIXES = ("Thought:", "I need to", "(1)", "(2)", "The user", "The User")
+    is_internal_reasoning = bool(full_response) and any(
+        full_response.startswith(p) for p in INTERNAL_PREFIXES
+    )
+    if is_internal_reasoning:
+        logger.warning(f"Response looks like internal reasoning ({repr(full_response[:60])}), will try trace fallback")
+        full_response = ""
+
+    # Also treat suspiciously short responses (< 10 chars) as empty so trace fallback can help
+    if full_response and len(full_response) < 10:
+        logger.warning(f"Response too short ({repr(full_response)}), will try trace fallback")
+        full_response = ""
+
+    # Fallback 1: if chunk bytes were empty OR contained leaked reasoning,
+    # use the answer extracted from <answer> tags in the model invocation traces
     if not full_response and answer_from_trace:
         full_response = answer_from_trace[-1]  # Use the last (final) answer
         logger.info(f"Using answer from trace fallback: {len(full_response)} chars")
