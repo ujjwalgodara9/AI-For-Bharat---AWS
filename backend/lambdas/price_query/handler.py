@@ -94,7 +94,11 @@ def handle_agent_action(event):
     try:
         if function == "query_mandi_prices":
             commodity = params.get("commodity", "")
-            state = params.get("state", "Madhya Pradesh")
+            if not commodity:
+                return agent_error_response(action_group, function, "commodity is required")
+            state = params.get("state", "")
+            if not state:
+                return agent_error_response(action_group, function, "state is required")
             mandi = params.get("mandi", None)
             days = int(params.get("days", "7"))
 
@@ -130,9 +134,11 @@ def handle_agent_action(event):
             }
 
         elif function == "get_nearby_mandis":
-            lat = float(params.get("latitude", "22.7196"))
-            lon = float(params.get("longitude", "75.8577"))
-            radius = float(params.get("radius_km", "50"))
+            if "latitude" not in params or "longitude" not in params:
+                return agent_error_response(action_group, function, "latitude and longitude are required")
+            lat = float(params["latitude"])
+            lon = float(params["longitude"])
+            radius = float(params.get("radius_km", "100"))
             commodity = params.get("commodity", "")
 
             mandis = get_nearby_mandis(lat, lon, radius, commodity)
@@ -148,14 +154,20 @@ def handle_agent_action(event):
 
         elif function == "get_price_trend":
             commodity = params.get("commodity", "")
-            state = params.get("state", "Madhya Pradesh")
+            if not commodity:
+                return agent_error_response(action_group, function, "commodity is required")
             mandi = params.get("mandi", "")
+            if not mandi:
+                return agent_error_response(action_group, function, "mandi is required")
+            state = params.get("state", "")
             days = int(params.get("days", "30"))
 
             result = get_price_trend(commodity, state, mandi, days)
 
         elif function == "get_msp":
             commodity = params.get("commodity", "")
+            if not commodity:
+                return agent_error_response(action_group, function, "commodity is required")
             result = get_msp(commodity)
 
         elif function == "calculate_transport_cost":
@@ -240,9 +252,13 @@ def handle_agent_action(event):
 
         elif function == "get_sell_recommendation":
             commodity = params.get("commodity", "")
-            state = params.get("state", "Madhya Pradesh")
-            lat = float(params.get("latitude", "22.7196"))
-            lon = float(params.get("longitude", "75.8577"))
+            if not commodity:
+                return agent_error_response(action_group, function, "commodity is required")
+            if "latitude" not in params or "longitude" not in params:
+                return agent_error_response(action_group, function, "latitude and longitude are required")
+            lat = float(params["latitude"])
+            lon = float(params["longitude"])
+            state = params.get("state", "")
             quantity = float(params.get("quantity_qtl", "10"))
             storage = params.get("storage_available", "false").lower() == "true"
 
@@ -297,6 +313,24 @@ def handle_agent_action(event):
                 }
             }
         }
+
+
+def agent_error_response(action_group: str, function: str, message: str) -> dict:
+    """Format an error response for Bedrock Agent Action Group."""
+    return {
+        "messageVersion": "1.0",
+        "response": {
+            "actionGroup": action_group,
+            "function": function,
+            "functionResponse": {
+                "responseBody": {
+                    "TEXT": {
+                        "body": json.dumps({"error": message})
+                    }
+                }
+            }
+        }
+    }
 
 
 def api_response(status_code: int, body: dict) -> dict:
