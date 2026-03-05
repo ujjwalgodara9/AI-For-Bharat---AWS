@@ -9,9 +9,11 @@ We schedule ingestion at 9:30 PM IST to ensure all data is fully propagated and 
 import os
 import json
 import math
+import time
 import logging
 import boto3
 import urllib.request
+import urllib.error
 import urllib.parse
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -27,6 +29,7 @@ S3_BUCKET = os.environ.get("S3_BUCKET", "mandimitra-data")
 API_KEY = os.environ.get("DATA_GOV_API_KEY", "")
 RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070"
 BASE_URL = f"https://api.data.gov.in/resource/{RESOURCE_ID}"
+API_DELAY = float(os.environ.get("API_DELAY_SECONDS", "0.5"))
 
 # Commodities and states to fetch
 COMMODITIES = [
@@ -72,6 +75,7 @@ def handler(event, context):
                 error_msg = f"Error fetching {commodity}/{state}: {str(e)}"
                 logger.error(error_msg)
                 errors.append(error_msg)
+            time.sleep(API_DELAY)
 
     # Store raw data audit log in S3
     try:
@@ -146,13 +150,8 @@ def _fetch_single_date(commodity: str, state: str, arrival_date: str) -> list:
         query_string = urllib.parse.urlencode(params)
         url = f"{BASE_URL}?{query_string}"
 
-        try:
-            req = urllib.request.Request(url)
-            req.add_header("User-Agent", "MandiMitra/1.0")
-            with urllib.request.urlopen(req, timeout=30) as response:
-                data = json.loads(response.read().decode("utf-8"))
-        except Exception as e:
-            logger.error(f"API request failed for {commodity}/{state} date={arrival_date} offset={offset}: {e}")
+        data = _fetch_with_retry(url, commodity, state, arrival_date, offset)
+        if data is None:
             break
 
         page_records = data.get("records", [])
@@ -174,15 +173,44 @@ def _fetch_single_date(commodity: str, state: str, arrival_date: str) -> list:
     return records
 
 
+def _fetch_with_retry(url: str, commodity: str, state: str, arrival_date: str, offset: int,
+                      max_retries: int = 5, base_delay: float = 3.0) -> dict:
+    """Fetch URL with exponential backoff retry on 429 Too Many Requests."""
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url)
+            req.add_header("User-Agent", "MandiMitra/1.0")
+            with urllib.request.urlopen(req, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(f"Rate limited (429) for {commodity}/{state} date={arrival_date}, "
+                               f"retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(delay)
+            else:
+                logger.error(f"API request failed for {commodity}/{state} date={arrival_date} offset={offset}: {e}")
+                return None
+        except Exception as e:
+            logger.error(f"API request failed for {commodity}/{state} date={arrival_date} offset={offset}: {e}")
+            return None
+    return None
+
+
 def write_to_dynamodb(table, records: list, commodity: str, state: str) -> int:
-    """Transform and batch-write records to DynamoDB."""
+    """Transform and batch-write records to DynamoDB, deduplicating by PK+SK."""
     count = 0
+    seen_keys = set()
 
     with table.batch_writer() as batch:
         for record in records:
             try:
                 item = transform_record(record, commodity, state)
                 if item:
+                    key = (item["PK"], item["SK"])
+                    if key in seen_keys:
+                        continue
+                    seen_keys.add(key)
                     batch.put_item(Item=item)
                     count += 1
             except Exception as e:
@@ -242,16 +270,17 @@ def transform_record(record: dict, commodity: str, state: str) -> dict:
         return None
 
     state_clean = state.upper().replace(" ", "_")
+    variety = (record.get("variety") or "UNKNOWN").strip().upper()
 
     item = {
         "PK": f"{commodity.upper()}#{state_clean}",
-        "SK": f"{iso_date}#{market}",
+        "SK": f"{iso_date}#{market}#{variety}",
         "commodity": commodity,
         "state": state,
         "district": (record.get("district") or "").strip(),
         "mandi_name": market,
         "arrival_date": iso_date,
-        "variety": (record.get("variety") or "").strip(),
+        "variety": variety,
         "min_price": min_price,
         "max_price": max_price,
         "modal_price": modal_price,

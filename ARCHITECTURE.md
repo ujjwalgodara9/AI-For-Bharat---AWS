@@ -172,7 +172,7 @@ Data Pipeline (manual trigger — EventBridge NOT configured):
 | Key/Attribute | Type | Example |
 |--------------|------|---------|
 | PK (Partition Key) | String | `WHEAT#MADHYA_PRADESH` |
-| SK (Sort Key) | String | `2026-03-01#INDORE APMC` |
+| SK (Sort Key) | String | `2026-03-01#INDORE APMC#LOKWAN` |
 | commodity | String | "Wheat" |
 | state | String | "Madhya Pradesh" |
 | district | String | "Indore" |

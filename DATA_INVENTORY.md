@@ -19,7 +19,7 @@
 | Attribute | Type | Example |
 |-----------|------|---------|
 | PK (Partition Key) | String | `WHEAT#HARYANA` |
-| SK (Sort Key) | String | `2026-02-28#INDRI APMC` |
+| SK (Sort Key) | String | `2026-02-28#INDRI APMC#DESI` |
 | commodity | String | `Wheat` |
 | state | String | `Haryana` |
 | district | String | `Karnal` |

@@ -156,7 +156,7 @@ def transform_to_dynamodb_format(records):
         market = (r.get("market", r.get("Market", "")) or "").strip().upper()
         commodity = (r.get("commodity", r.get("Commodity", "")) or "").strip()
         district = (r.get("district", r.get("District", "")) or "").strip()
-        variety = (r.get("variety", r.get("Variety", "")) or "").strip()
+        variety = (r.get("variety", r.get("Variety", "")) or "UNKNOWN").strip().upper()
         arrival_date = r.get("arrival_date", r.get("Arrival_Date", ""))
         min_price = r.get("min_price", r.get("Min_Price"))
         max_price = r.get("max_price", r.get("Max_Price"))
@@ -185,7 +185,7 @@ def transform_to_dynamodb_format(records):
 
         state_clean = state.upper().replace(" ", "_")
         pk = f"{commodity.upper()}#{state_clean}"
-        sk = f"{iso_date}#{market}"
+        sk = f"{iso_date}#{market}#{variety}"
 
         # Deduplicate
         key = f"{pk}|{sk}"
