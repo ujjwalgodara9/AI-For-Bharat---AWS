@@ -37,3 +37,4 @@ dist/
 build/
 
 .claude/
+Log_error.txt

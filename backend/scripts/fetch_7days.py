@@ -142,15 +142,16 @@ def transform(record: dict, commodity: str, state: str) -> dict:
             return None
 
     state_clean = state.upper().replace(" ", "_")
+    variety = (record.get("variety") or "UNKNOWN").strip().upper()
     item = {
         "PK": f"{commodity.upper()}#{state_clean}",
-        "SK": f"{iso_date}#{market}",
+        "SK": f"{iso_date}#{market}#{variety}",
         "commodity": commodity,
         "state": state,
         "district": (record.get("district") or "").strip(),
         "mandi_name": market,
         "arrival_date": iso_date,
-        "variety": (record.get("variety") or "").strip(),
+        "variety": variety,
         "min_price": min_p,
         "max_price": max_p,
         "modal_price": modal,
