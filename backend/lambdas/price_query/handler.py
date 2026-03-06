@@ -20,6 +20,7 @@ from shared.dynamodb_utils import (
     list_commodities_with_translations
 )
 from shared.constants import MANDI_COORDINATES
+from shared.geocoding import get_coordinates
 from shared.weather_utils import get_weather_advisory
 
 logger = logging.getLogger()
@@ -176,8 +177,9 @@ def handle_agent_action(event):
             dest_mandi = params.get("dest_mandi", "")
             quantity = float(params.get("quantity_qtl", "1"))
 
-            if dest_mandi in MANDI_COORDINATES:
-                d_lat, d_lon = MANDI_COORDINATES[dest_mandi]
+            dest_coords = get_coordinates(dest_mandi, fallback_dict=MANDI_COORDINATES)
+            if dest_coords:
+                d_lat, d_lon = dest_coords
                 from shared.dynamodb_utils import haversine_distance
                 distance = haversine_distance(origin_lat, origin_lon, d_lat, d_lon)
                 cost_per_qtl = round(distance * 0.8, 2)

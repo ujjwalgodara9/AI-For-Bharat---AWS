@@ -13,6 +13,7 @@ from .constants import (
     STORAGE_TIPS, CROP_SEASONS, WEATHER_STORAGE_IMPACT,
     COMMODITY_TRANSLATIONS
 )
+from .geocoding import get_coordinates
 
 dynamodb = boto3.resource("dynamodb", region_name=os.environ.get("AWS_REGION", "us-east-1"))
 table = dynamodb.Table(os.environ.get("PRICE_TABLE", PRICE_TABLE_NAME))
@@ -692,7 +693,7 @@ def get_mandi_profile(mandi: str, days: int = 7) -> dict:
     mandi_name = first_item.get("mandi_name", mandi_upper)
     district = first_item.get("district", "")
     state = first_item.get("state", "")
-    coords = MANDI_COORDINATES.get(mandi.strip().title(), None)
+    coords = get_coordinates(mandi.strip(), state=state, fallback_dict=MANDI_COORDINATES)
 
     return {
         "mandi_name": mandi_name,
