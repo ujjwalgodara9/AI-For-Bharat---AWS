@@ -63,7 +63,7 @@ def fetch_current_prices():
     offset = 0
     limit = 500
 
-    while offset < 5000:
+    while True:
         params = {
             "api-key": API_KEY,
             "format": "json",
@@ -93,7 +93,6 @@ def fetch_current_prices():
 
     print(f"  TOTAL: {len(all_records)} current price records")
     return all_records
-
 
 def fetch_historical_prices():
     """Fetch historical prices for key commodity-state pairs."""
