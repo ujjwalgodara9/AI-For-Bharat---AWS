@@ -6,6 +6,7 @@ import json
 import urllib.request
 import urllib.parse
 from .constants import MANDI_COORDINATES
+from .geocoding import get_coordinates
 
 
 # WMO weather codes to descriptions
@@ -25,17 +26,10 @@ def get_weather_advisory(location: str, latitude: float = None, longitude: float
     # Resolve coordinates
     if latitude is not None and longitude is not None:
         lat, lon = latitude, longitude
-    elif location.upper() in MANDI_COORDINATES:
-        lat, lon = MANDI_COORDINATES[location.upper()]
-    elif location.title() in MANDI_COORDINATES:
-        lat, lon = MANDI_COORDINATES[location.title()]
     else:
-        # Try fuzzy match
-        loc_upper = location.upper()
-        for name, coords in MANDI_COORDINATES.items():
-            if loc_upper in name.upper() or name.upper() in loc_upper:
-                lat, lon = coords
-                break
+        coords = get_coordinates(location, fallback_dict=MANDI_COORDINATES)
+        if coords:
+            lat, lon = coords
         else:
             return {"error": f"Location '{location}' not found. Try a major city name."}
 

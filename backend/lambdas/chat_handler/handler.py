@@ -38,6 +38,44 @@ except ImportError:
     logger.info("LangFuse not installed, tracing disabled")
 
 
+def detect_language_style(message: str) -> str:
+    """Detect whether the message is Hindi (Devanagari), Hinglish (Roman Hindi), or English.
+    Returns: 'hi' for Hindi, 'hinglish' for Hinglish, 'en' for English."""
+    # Check for Devanagari characters
+    devanagari_count = sum(1 for c in message if '\u0900' <= c <= '\u097F')
+    total_alpha = sum(1 for c in message if c.isalpha())
+
+    if total_alpha == 0:
+        return "hi"  # Default
+
+    devanagari_ratio = devanagari_count / total_alpha if total_alpha > 0 else 0
+
+    # If >30% Devanagari characters, it's Hindi
+    if devanagari_ratio > 0.3:
+        return "hi"
+
+    # Check for Hinglish indicators (Hindi words written in Roman script)
+    hinglish_words = {
+        "kya", "hai", "ka", "ki", "ke", "mein", "me", "ko", "se", "par",
+        "aur", "ya", "nahi", "haan", "kahan", "kaise", "kitna", "kitne",
+        "batao", "bataiye", "chahiye", "karo", "kijiye", "dijiye",
+        "bhav", "bhaw", "daam", "rate", "mandi", "fasal", "becho",
+        "bechun", "ruku", "ruke", "bechu", "mausam", "barish",
+        "gehun", "gehu", "aloo", "alu", "pyaz", "tamatar", "sarson",
+        "makka", "chana", "kapas", "dhan", "soyabin", "soyabean",
+        "acchi", "accha", "sabse", "paas", "dur", "jaldi",
+        "abhi", "kal", "aaj", "parso", "waha", "yaha",
+        "kisaan", "kisan", "bhai", "sahab",
+    }
+    words = set(re.sub(r'[^a-zA-Z\s]', '', message.lower()).split())
+    hinglish_matches = words & hinglish_words
+
+    if len(hinglish_matches) >= 2:
+        return "hinglish"
+
+    return "en"
+
+
 def handler(event, context):
     """Main Lambda handler for chat endpoint."""
     start_time = time.time()
@@ -52,13 +90,17 @@ def handler(event, context):
         return api_response(400, {"error": "Invalid JSON body"})
 
     user_message = body.get("message", "").strip()
-    language = body.get("language", "hi")  # Default to Hindi
+    language = body.get("language", "hi")  # Default from frontend toggle
     session_id = body.get("session_id", str(uuid.uuid4()))
     user_lat = body.get("latitude")
     user_lon = body.get("longitude")
 
     if not user_message:
         return api_response(400, {"error": "Message is required"})
+
+    # Auto-detect actual language style from the message content
+    detected_style = detect_language_style(user_message)
+    logger.info(f"Language toggle: {language}, Detected style: {detected_style}")
 
     # Start LangFuse trace
     trace = None
@@ -75,6 +117,7 @@ def handler(event, context):
         response_text, agent_traces = invoke_agent(
             user_message, session_id, language, trace,
             user_lat=user_lat, user_lon=user_lon,
+            detected_style=detected_style,
         )
 
         elapsed = round(time.time() - start_time, 2)
@@ -120,7 +163,7 @@ def handler(event, context):
 
 
 def invoke_agent(message: str, session_id: str, language: str, trace=None,
-                  user_lat=None, user_lon=None) -> tuple:
+                  user_lat=None, user_lon=None, detected_style=None) -> tuple:
     """Invoke Bedrock Agent and collect response + traces."""
     response_parts = []
     answer_from_trace = []
@@ -128,12 +171,23 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None,
 
     # Build augmented message with language and location context
     parts = []
-    if language == "hi":
-        parts.append("[Respond in Hindi]")
+
+    # Language instruction based on detected style (what the user actually typed)
+    style = detected_style or language
+    if style == "hi":
+        parts.append("[Respond in Hindi (Devanagari script). User wrote in Hindi.]")
+    elif style == "hinglish":
+        parts.append("[Respond in Hinglish (Hindi words in Roman/English script). User wrote in Hinglish. Example style: 'Kisaan bhai, aapke area mein gehun ka bhav ₹2,350/quintal hai.']")
+    else:
+        parts.append("[Respond in English. User wrote in English.]")
+
+    # GPS location — ONLY as fallback context (chat-mentioned location takes priority)
     if user_lat is not None and user_lon is not None:
-        parts.append(f"[User GPS location: latitude={user_lat}, longitude={user_lon}. Use this for nearby mandi lookups and transport cost calculations.]")
+        parts.append(f"[User GPS location (use ONLY if no location is mentioned in the chat message): latitude={user_lat}, longitude={user_lon}. If user mentions a specific city/mandi in their message, prefer that over GPS.]")
+
     parts.append(message)
     augmented_message = " ".join(parts)
+    logger.info(f"Augmented message length: {len(augmented_message)}, style: {style}")
 
     try:
         response = bedrock_agent_runtime.invoke_agent(
