@@ -219,7 +219,7 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
 
       {/* Powered by */}
       <p className="text-[10px] text-gray-300 mt-4">
-        Powered by Amazon Bedrock Agents + Amazon Nova AI
+        Powered by Amazon Bedrock Agents + Claude Sonnet 3.7
       </p>
     </div>
   );
@@ -241,11 +241,10 @@ function FeatureCard({
   return (
     <button
       onClick={onClick}
-      className={`bg-white rounded-xl p-4 text-left shadow-sm border transition-all active:scale-[0.98] ${
-        active
+      className={`bg-white rounded-xl p-4 text-left shadow-sm border transition-all active:scale-[0.98] ${active
           ? "border-[#2d6a4f] shadow-md ring-1 ring-[#2d6a4f]/20"
           : "border-gray-100 hover:border-[#2d6a4f]/30 hover:shadow-md"
-      }`}
+        }`}
     >
       <span className="text-2xl">{icon}</span>
       <h3 className="text-sm font-semibold text-gray-800 mt-2">{title}</h3>

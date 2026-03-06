@@ -195,13 +195,54 @@ export default function LocationPicker({
     setGpsLoading(true);
     setGpsError("");
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+
+        // Reverse geocode GPS → state + city using Nominatim (same API as backend geocoding.py)
+        let detectedState = "";
+        let detectedCity = "";
+        let locationLabel = "Live GPS";
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=en`,
+            { headers: { "User-Agent": "MandiMitra/1.0 (agricultural-market-app)" } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const addr = data.address || {};
+            // Nominatim returns state in address.state
+            const rawState = addr.state || "";
+            // Map to our LOCATIONS dictionary format (remove trailing "State" if present)
+            const stateNames = Object.keys(LOCATIONS);
+            const matchedState = stateNames.find(
+              (s) => s.toLowerCase() === rawState.toLowerCase() ||
+                     rawState.toLowerCase().includes(s.toLowerCase()) ||
+                     s.toLowerCase().includes(rawState.toLowerCase())
+            );
+            detectedState = matchedState || rawState;
+            // City: try city, town, county, district in priority order
+            detectedCity = addr.city || addr.town || addr.county || addr.state_district || addr.village || "";
+            if (detectedCity && detectedState) {
+              locationLabel = `${detectedCity}, ${detectedState}`;
+            } else if (detectedState) {
+              locationLabel = detectedState;
+            } else if (detectedCity) {
+              locationLabel = detectedCity;
+            }
+          }
+        } catch (e) {
+          // Reverse geocoding failed — GPS still works, just without state/city auto-fill
+          console.warn("Reverse geocoding failed:", e);
+        }
+
         setGpsLoading(false);
         onSelectLocation({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          label: "Live GPS",
-          state: "",
+          latitude: lat,
+          longitude: lon,
+          label: locationLabel,
+          state: detectedState,
+          city: detectedCity,
         });
         onClose();
       },

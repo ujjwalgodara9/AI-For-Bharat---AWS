@@ -100,6 +100,8 @@ export default function Home() {
           payload.latitude = userLocation.latitude;
           payload.longitude = userLocation.longitude;
         }
+        if (locationState) payload.state = locationState;
+        if (locationCity) payload.city = locationCity;
         const res = await fetch(`${API_BASE}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

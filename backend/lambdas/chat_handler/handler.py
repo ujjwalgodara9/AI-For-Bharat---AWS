@@ -94,6 +94,8 @@ def handler(event, context):
     session_id = body.get("session_id", str(uuid.uuid4()))
     user_lat = body.get("latitude")
     user_lon = body.get("longitude")
+    user_state = body.get("state", "")
+    user_city = body.get("city", "")
 
     if not user_message:
         return api_response(400, {"error": "Message is required"})
@@ -118,6 +120,7 @@ def handler(event, context):
             user_message, session_id, language, trace,
             user_lat=user_lat, user_lon=user_lon,
             detected_style=detected_style,
+            user_state=user_state, user_city=user_city,
         )
 
         elapsed = round(time.time() - start_time, 2)
@@ -163,7 +166,8 @@ def handler(event, context):
 
 
 def invoke_agent(message: str, session_id: str, language: str, trace=None,
-                  user_lat=None, user_lon=None, detected_style=None) -> tuple:
+                  user_lat=None, user_lon=None, detected_style=None,
+                  user_state=None, user_city=None) -> tuple:
     """Invoke Bedrock Agent and collect response + traces."""
     response_parts = []
     answer_from_trace = []
@@ -181,8 +185,15 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None,
     else:
         parts.append("[Respond in English. User wrote in English.]")
 
-    # GPS location — ONLY as fallback context (chat-mentioned location takes priority)
-    if user_lat is not None and user_lon is not None:
+    # Location context — provide state/city AND GPS as fallback
+    if user_state:
+        location_desc = f"state={user_state}"
+        if user_city:
+            location_desc += f", city={user_city}"
+        if user_lat is not None and user_lon is not None:
+            location_desc += f", GPS=({user_lat},{user_lon})"
+        parts.append(f"[User's selected location: {location_desc}. Use this for state parameter in tool calls. If user mentions a DIFFERENT city/mandi in their message, prefer that over this default.]")
+    elif user_lat is not None and user_lon is not None:
         parts.append(f"[User GPS location (use ONLY if no location is mentioned in the chat message): latitude={user_lat}, longitude={user_lon}. If user mentions a specific city/mandi in their message, prefer that over GPS.]")
 
     parts.append(message)
