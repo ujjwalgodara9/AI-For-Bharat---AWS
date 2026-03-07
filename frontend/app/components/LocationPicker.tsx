@@ -126,13 +126,7 @@ const LOCATIONS: Record<string, { lat: number; lon: number; cities: Record<strin
       "Hajipur": { lat: 25.69, lon: 85.22 },
     },
   },
-  "Chhattisgarh": {
-    lat: 21.25, lon: 81.63,
-    cities: {
-      "Raipur": { lat: 21.25, lon: 81.63 },
-      "Bilaspur": { lat: 22.09, lon: 82.15 },
-    },
-  },
+  
 };
 
 interface LocationPickerProps {
