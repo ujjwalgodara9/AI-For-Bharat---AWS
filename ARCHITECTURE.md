@@ -1,6 +1,6 @@
 # MandiMitra — System Architecture & Technical Documentation
 
-> **Version:** 2.0 (Multi-Agent) | **Last Updated:** 6 March 2026
+> **Version:** 2.1 (Multi-Agent) | **Last Updated:** 7 March 2026
 > **Live URL:** https://d2mtfau3fvs243.cloudfront.net
 > **Model:** Claude Sonnet 4 (`us.anthropic.claude-sonnet-4-20250514-v1:0`)
 
@@ -74,14 +74,23 @@ MandiMitra is an AI-powered agricultural market intelligence platform that helps
               │   mandimitra-    │  └────────┬─────────┘       │
               │   frontend-      │           │                 │
               │   471112620976   │     ┌─────┴──────┐          │
-              └──────────────────┘     │            │          │
-                                       ▼            ▼          │
-                              ┌────────────┐ ┌────────────┐    │
-                              │ mandimitra │ │ mandimitra │    │
-                              │ -chat      │ │ -price-    │    │
-                              │ Lambda     │ │ query      │    │
-                              │            │ │ Lambda     │    │
-                              └─────┬──────┘ └─────┬──────┘    │
+              └────────┬─────────┘     │            │          │
+                       │               ▼            ▼          │
+                       │      ┌────────────┐ ┌────────────┐    │
+                       │      │ mandimitra │ │ mandimitra │    │
+                       │      │ -price-    │ │ -data-     │    │
+                       │      │ query      │ │ ingestion  │    │
+                       │      │ Lambda     │ │ Lambda     │    │
+                       │      └─────┬──────┘ └────────────┘    │
+                       │            │                          │
+                       │  (Chat via Function URL)              │
+                       ▼                                       │
+              ┌────────────────┐                               │
+              │ mandimitra-chat│                               │
+              │ Lambda         │                               │
+              │ (Function URL) │                               │
+              │ 60s timeout    │                               │
+              └─────┬──────────┘                               │
                                     │              │           │
                                     ▼              │           │
                       ┌──────────────────────┐     │           │
@@ -120,8 +129,8 @@ MandiMitra is an AI-powered agricultural market intelligence platform that helps
 
 ```
 1. User types "गेहूं का भाव बताओ इंदौर" in the chat UI
-2. Frontend (Next.js) → POST /api/chat with {message, session_id, language, lat, lon, state, city}
-3. API Gateway → mandimitra-chat Lambda
+2. Frontend (Next.js) → POST to Lambda Function URL with {message, session_id, language, lat, lon, state, city}
+3. Lambda Function URL → mandimitra-chat Lambda (bypasses API Gateway 29s limit)
 4. Chat Lambda:
    a. Detects language style (Hindi/Hinglish/English)
    b. Augments message with location context + language instruction
@@ -253,7 +262,8 @@ Supervisor Agent
 |---------|----------|---------|--------|
 | **Bedrock Agents** | 5 agents (SUPERVISOR mode) | Multi-agent AI orchestration | Claude Sonnet 4 |
 | **Bedrock Guardrails** | `snlfs5xjb61l` | Content safety filtering | VIOLENCE/HATE/SEXUAL: HIGH |
-| **Lambda** | `mandimitra-chat` | Chat endpoint, Bedrock invocation | Python 3.12, 512MB, 29s |
+| **Lambda** | `mandimitra-chat` | Chat endpoint, Bedrock invocation | Python 3.12, 512MB, 60s |
+| **Lambda Function URL** | `mandimitra-chat` | Direct chat endpoint (bypasses API GW 29s limit) | CORS configured, no auth |
 | **Lambda** | `mandimitra-price-query` | Price queries + Action Groups | Python 3.12, 256MB, 30s |
 | **Lambda** | `mandimitra-data-ingestion` | Daily Agmarknet data fetch | Python 3.12, 512MB, 900s |
 | **DynamoDB** | `MandiMitraPrices` | Price time-series storage | PAY_PER_REQUEST, 2 GSIs |
@@ -295,7 +305,11 @@ Next.js Config (next.config.mjs):
   trailingSlash: true       → S3 compatible URLs
   images.unoptimized: true  → No Image Optimization API needed
 
-Build:  NEXT_PUBLIC_API_URL=https://...execute-api.../prod/api npm run build
+Env vars (baked at build time):
+  NEXT_PUBLIC_API_URL=https://...execute-api.../prod/api   (prices, crop list)
+  NEXT_PUBLIC_CHAT_URL=https://...lambda-url.../            (chat — bypasses API GW)
+
+Build:  npm run build
 Deploy: aws s3 sync out/ s3://mandimitra-frontend-471112620976 --delete
 Cache:  aws cloudfront create-invalidation --distribution-id E1FOPZ17Q7P6CF --paths "/*"
 ```
@@ -410,6 +424,9 @@ Entry: handler(event, context)
   │   ├── Strip "Bot:" prefix
   │   ├── Remove leaked XML tags (<response>, <answer>, etc.)
   │   └── Clean sub-agent artifacts
+  │
+  ├── CORS: Handled by Lambda Function URL config (not in Lambda code)
+  │   └── Prevents duplicate Access-Control-Allow-Origin headers
   │
   ├── LangFuse Tracing (optional):
   │   ├── trace.generation(model="claude-sonnet-4", input=message, output=response)
@@ -709,11 +726,24 @@ GET /api/prices/_list?state=MADHYA_PRADESH  → Available commodities with Hindi
 
 ### CORS Configuration
 
+Chat endpoint CORS is handled at the **Lambda Function URL** level (not in Lambda code):
+
+```
+Access-Control-Allow-Origin: * (Function URL config)
+Access-Control-Allow-Methods: POST
+Access-Control-Allow-Headers: content-type, authorization
+Access-Control-Max-Age: 86400 (24h preflight cache)
+```
+
+API Gateway endpoints (prices, crop list) use standard API Gateway CORS:
+
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, POST, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 ```
+
+> **Note:** Lambda handler must NOT return its own CORS headers when using Function URL CORS — duplicate `Access-Control-Allow-Origin` headers cause intermittent browser rejections.
 
 ---
 
@@ -876,7 +906,7 @@ Resources:
   PriceTable:       DynamoDB (PAY_PER_REQUEST, 2 GSIs)
   DataBucket:       S3 (audit logs)
   DataIngestion:    Lambda (Python 3.12, 512MB, 900s) + EventBridge schedule
-  ChatHandler:      Lambda (Python 3.12, 512MB, 29s)
+  ChatHandler:      Lambda (Python 3.12, 512MB, 60s) + Function URL (CORS)
   PriceQuery:       Lambda (Python 3.12, 256MB, 30s)
   APIGateway:       HTTP API (/api/chat POST, /api/prices GET)
 ```
@@ -1030,7 +1060,7 @@ MandiMitra/
 │   │       └── voice.ts              # Web Speech API (STT + TTS)
 │   ├── public/
 │   │   ├── manifest.json             # PWA manifest
-│   │   ├── sw.js                     # Service worker
+│   │   ├── sw.js                     # Service worker (v2: bypasses API/cross-origin requests)
 │   │   └── icon-*.png                # App icons
 │   ├── next.config.mjs               # Static export config
 │   ├── tailwind.config.ts            # Custom color palette
@@ -1109,7 +1139,7 @@ MandiMitra/
 
 | Function | Runtime | Memory | Timeout | Last Deployed |
 |----------|---------|--------|---------|---------------|
-| mandimitra-chat | Python 3.12 | 512 MB | 29s | 2026-03-06 (with langfuse bundled) |
+| mandimitra-chat | Python 3.12 | 512 MB | 60s | 2026-03-07 (CORS fix, Function URL) |
 | mandimitra-price-query | Python 3.12 | 256 MB | 30s | 2026-03-06 (with geocoding.py) |
 | mandimitra-data-ingestion | Python 3.12 | 512 MB | 900s | 2026-03-05 |
 
@@ -1139,6 +1169,7 @@ LANGFUSE_HOST=https://cloud.langfuse.com
 
 # Frontend (.env.local)
 NEXT_PUBLIC_API_URL=https://skwsw8qk22.execute-api.us-east-1.amazonaws.com/prod/api
+NEXT_PUBLIC_CHAT_URL=https://qkatltxwdichmmb7t5oqj23jg40xhuae.lambda-url.us-east-1.on.aws/
 ```
 
 ---
