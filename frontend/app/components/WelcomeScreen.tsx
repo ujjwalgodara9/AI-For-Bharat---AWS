@@ -61,11 +61,22 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
             : `Should I sell my ${name} now or wait? Give me 7-day price history, tomorrow's predicted price, weather impact on storage, shelf life, storage tips, warehouse advice, and full reasoning.`
         );
         break;
+      case "negotiation":
+        onQuickAction(
+          isHindi
+            ? (hasLocation
+              ? `${loc} में ${name} बेचने के लिए एक बहुत detailed negotiation brief तैयार करो जो मैं मंडी व्यापारी को दिखा सकूं। इसमें शामिल करो: MSP, आज का मंडी भाव (min/max/modal), पिछले 7 दिन का भाव trend, ${loc} के पास सबसे अच्छी मंडियों के भाव (distance के साथ), उचित दाम range, और मोलभाव के tips। Brief ऐसा हो जो print करके trader को दिखा सकूं।`
+              : `${name} बेचने के लिए एक बहुत detailed negotiation brief तैयार करो जो मैं मंडी व्यापारी को दिखा सकूं। इसमें शामिल करो: MSP, आज का मंडी भाव (min/max/modal), पिछले 7 दिन का भाव trend, पास की मंडियों के भाव, उचित दाम range, और मोलभाव के tips।`)
+            : (hasLocation
+              ? `Prepare a very detailed negotiation brief for selling ${name} in ${loc} that I can show to the mandi trader. Include: MSP, today's mandi price (min/max/modal), 7-day price trend, best nearby mandi prices with distances, fair price range, and negotiation tips. Make it printable and professional.`
+              : `Prepare a very detailed negotiation brief for selling ${name} that I can show to the mandi trader. Include: MSP, today's mandi price (min/max/modal), 7-day price trend, nearby mandi prices, fair price range, and negotiation tips.`)
+        );
+        break;
       case "priceBrief":
         onQuickAction(
           isHindi
-            ? (hasLocation ? `${loc} में ${name} का price brief बनाओ negotiation के लिए` : `${name} का price brief बनाओ negotiation के लिए`)
-            : (hasLocation ? `Generate a price brief for ${name} in ${loc}` : `Generate a price brief for ${name} for negotiation`)
+            ? (hasLocation ? `${loc} में ${name} का price brief बनाओ` : `${name} का price brief बनाओ`)
+            : (hasLocation ? `Generate a price brief for ${name} in ${loc}` : `Generate a price brief for ${name}`)
         );
         break;
       case "msp":
@@ -87,7 +98,7 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
       <p className="text-sm text-gray-500 mb-2 text-center">
         {isHindi
           ? "AI-संचालित मंडी बाज़ार बुद्धिमत्ता — किसानों के लिए"
-          : "AI-powered Mandi Market Intelligence — for Farmers"}
+          : "AI-powered Mandi Market Intelligence"}
       </p>
 
       {/* Show selected location */}
@@ -142,16 +153,11 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
           active={activePicker === "bestMandi"}
         />
         <FeatureCard
-          icon="🏪"
-          title={isHindi ? "मंडी जानकारी" : "Mandi Info"}
-          desc={isHindi ? "मंडी प्रोफ़ाइल देखें" : "Market profile & details"}
-          onClick={() =>
-            onQuickAction(
-              isHindi
-                ? (hasLocation ? `${loc} मंडी की पूरी जानकारी दो — कौन सी फसलें बिक रही हैं, भाव, और Agmarknet विवरण` : "मंडी की जानकारी दो — कौन सी फसलें बिक रही हैं और भाव क्या हैं?")
-                : (hasLocation ? `Give me full information about ${loc} mandi — what commodities are traded, prices, and Agmarknet details` : "Give me mandi information — what commodities are available and their prices?")
-            )
-          }
+          icon="🤝"
+          title={isHindi ? "मोलभाव करें" : "Negotiate"}
+          desc={isHindi ? "व्यापारी को दिखाने के लिए" : "Brief to show the trader"}
+          onClick={() => setActivePicker("negotiation")}
+          active={activePicker === "negotiation"}
         />
         <FeatureCard
           icon="⏳"
@@ -169,7 +175,17 @@ export default function WelcomeScreen({ language, onQuickAction, locationState, 
         </p>
         <div className="flex flex-wrap gap-2">
           <QuickChip
-            label={isHindi ? "📋 Price Brief" : "📋 Price Brief"}
+            label={isHindi ? "🏪 मंडी जानकारी" : "🏪 Mandi Info"}
+            onClick={() =>
+              onQuickAction(
+                isHindi
+                  ? (hasLocation ? `${loc} मंडी की पूरी जानकारी दो — कौन सी फसलें बिक रही हैं, भाव, और Agmarknet विवरण` : "मंडी की जानकारी दो — कौन सी फसलें बिक रही हैं और भाव क्या हैं?")
+                  : (hasLocation ? `Give me full information about ${loc} mandi — what commodities are traded, prices, and Agmarknet details` : "Give me mandi information — what commodities are available and their prices?")
+              )
+            }
+          />
+          <QuickChip
+            label={isHindi ? "📋 मूल्य पत्र" : "📋 Price Brief"}
             onClick={() => setActivePicker("priceBrief")}
           />
           <QuickChip

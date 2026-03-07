@@ -36,6 +36,19 @@ Thumbs.db
 dist/
 build/
 
+# Data & test artifacts
+data/
+deploy_packages/
+*.log
+
+# Large binaries
+*.pdf
+*.pptx
+
+# Temporary configs
+cf_config*.json
+multi_agent_ids.json
+
 # Lambda pip install artifacts (from `pip install -r requirements.txt -t .`)
 backend/lambdas/*/*.dist-info/
 backend/lambdas/*/*.pyd

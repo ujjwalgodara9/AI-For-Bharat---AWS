@@ -5,55 +5,85 @@ interface PricePoint {
   price: number;
 }
 
-interface PriceChartProps {
-  data: PricePoint[];
-  title?: string;
+export interface PriceDataResult {
+  points: PricePoint[];
+  type: "comparison" | "trend";
+  title: string;
 }
 
-export default function PriceChart({ data, title }: PriceChartProps) {
-  if (!data || data.length < 2) return null;
+interface PriceChartProps {
+  data: PriceDataResult;
+}
 
-  const prices = data.map((d) => d.price);
+export default function PriceChart({ data }: PriceChartProps) {
+  const { points, type, title } = data;
+  if (!points || points.length < 2) return null;
+
+  const prices = points.map((d) => d.price);
   const maxPrice = Math.max(...prices);
   const minPrice = Math.min(...prices);
   const range = maxPrice - minPrice || 1;
 
-  const isRising = prices[prices.length - 1] > prices[0];
-  const changePct = (((prices[prices.length - 1] - prices[0]) / prices[0]) * 100).toFixed(1);
+  // For trends: green if rising, red if falling
+  // For comparisons: neutral blue (no directional meaning)
+  const isComparison = type === "comparison";
+  const isRising = prices[prices.length - 1] >= prices[0];
+  const changePct = Math.abs(
+    ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100
+  ).toFixed(1);
+
+  let color: string;
+  let bgColor: string;
+  let fillColor: string;
+
+  if (isComparison) {
+    color = "#2563eb"; // blue
+    bgColor = "#eff6ff";
+    fillColor = "rgba(37,99,235,0.10)";
+  } else if (isRising) {
+    color = "#16a34a";
+    bgColor = "#dcfce7";
+    fillColor = "rgba(22,163,74,0.12)";
+  } else {
+    color = "#dc2626";
+    bgColor = "#fef2f2";
+    fillColor = "rgba(220,38,38,0.12)";
+  }
 
   // Build SVG polyline path
   const width = 280;
-  const height = 80;
+  const height = 100;
   const padX = 8;
-  const padY = 10;
+  const padY = 12;
+  const padBottom = 28;
   const chartW = width - padX * 2;
-  const chartH = height - padY * 2;
+  const chartH = height - padY - padBottom;
 
-  const points = data.map((d, i) => {
-    const x = padX + (i / (data.length - 1)) * chartW;
+  const svgPoints = points.map((d, i) => {
+    const x = padX + (i / (points.length - 1)) * chartW;
     const y = padY + chartH - ((d.price - minPrice) / range) * chartH;
-    return `${x},${y}`;
+    return { x, y };
   });
-  const polyline = points.join(" ");
+
+  const polyline = svgPoints.map((p) => `${p.x},${p.y}`).join(" ");
 
   // Area fill
-  const areaPath = `M${padX},${padY + chartH} ${points.map((p, i) => (i === 0 ? `L${p}` : `L${p}`)).join(" ")} L${padX + chartW},${padY + chartH} Z`;
-
-  const color = isRising ? "#16a34a" : "#dc2626";
-  const bgColor = isRising ? "#dcfce7" : "#fef2f2";
-  const fillColor = isRising ? "rgba(22,163,74,0.12)" : "rgba(220,38,38,0.12)";
+  const areaPath = `M${padX},${padY + chartH} ${svgPoints.map((p) => `L${p.x},${p.y}`).join(" ")} L${padX + chartW},${padY + chartH} Z`;
 
   return (
-    <div className="mt-2 rounded-lg border border-gray-100 overflow-hidden" style={{ background: bgColor }}>
-      {title && (
-        <div className="px-3 pt-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-600">{title}</span>
+    <div
+      className="mt-2 rounded-lg border border-gray-100 overflow-hidden"
+      style={{ background: bgColor }}
+    >
+      <div className="px-3 pt-2 flex items-center justify-between">
+        <span className="text-xs font-medium text-gray-600">{title}</span>
+        {!isComparison && (
           <span className="text-xs font-bold" style={{ color }}>
-            {isRising ? "▲" : "▼"} {changePct}%
+            {isRising ? "+" : "-"}{changePct}%
           </span>
-        </div>
-      )}
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ height: 80 }}>
+        )}
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ height: 100 }}>
         <path d={areaPath} fill={fillColor} />
         <polyline
           points={polyline}
@@ -63,30 +93,51 @@ export default function PriceChart({ data, title }: PriceChartProps) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* Dots on first and last point */}
-        {[0, data.length - 1].map((idx) => {
-          const x = padX + (idx / (data.length - 1)) * chartW;
-          const y = padY + chartH - ((data[idx].price - minPrice) / range) * chartH;
-          return <circle key={idx} cx={x} cy={y} r="3" fill={color} />;
-        })}
+        {/* Dots and price labels on each point */}
+        {svgPoints.map((p, idx) => (
+          <g key={idx}>
+            <circle cx={p.x} cy={p.y} r="3" fill={color} />
+            <text
+              x={p.x}
+              y={p.y - 7}
+              textAnchor="middle"
+              fill={color}
+              fontSize="7"
+              fontWeight="600"
+            >
+              {points[idx].price.toLocaleString("en-IN")}
+            </text>
+          </g>
+        ))}
+        {/* X-axis labels */}
+        {svgPoints.map((p, idx) => (
+          <text
+            key={`label-${idx}`}
+            x={p.x}
+            y={height - 4}
+            textAnchor="middle"
+            fill="#888"
+            fontSize="6.5"
+          >
+            {points[idx].label.length > 10
+              ? points[idx].label.slice(0, 9) + ".."
+              : points[idx].label}
+          </text>
+        ))}
       </svg>
-      <div className="flex justify-between px-3 pb-2 text-[10px] text-gray-500">
-        <span>₹{minPrice.toLocaleString("en-IN")}</span>
-        <span>₹{maxPrice.toLocaleString("en-IN")}</span>
-      </div>
     </div>
   );
 }
 
 /**
  * Parse price data from bot message text.
- * Looks for patterns like mandi price listings with ₹ values.
+ * Only returns data when there's clear, structured price information.
  */
-export function extractPriceData(text: string): PricePoint[] | null {
+export function extractPriceData(text: string): PriceDataResult | null {
   const points: PricePoint[] = [];
 
-  // Pattern 1: "Mandi: ₹X,XXX" lines (nearby mandis comparison)
-  const mandiPattern = /[•→]\s*(.+?):\s*₹([\d,]+)/g;
+  // Pattern 1: "Mandi/Location: Rs/₹X,XXX" lines (nearby mandis / mandi comparison)
+  const mandiPattern = /[•\-→]\s*(.+?):\s*₹([\d,]+)/g;
   let match;
   while ((match = mandiPattern.exec(text)) !== null) {
     const label = match[1].trim().split("(")[0].trim();
@@ -96,22 +147,34 @@ export function extractPriceData(text: string): PricePoint[] | null {
     }
   }
 
-  if (points.length >= 2) return points;
+  if (points.length >= 3) {
+    // Sort by price ascending for a clean comparison chart
+    points.sort((a, b) => a.price - b.price);
+    return {
+      points,
+      type: "comparison",
+      title: "Mandi Price Comparison",
+    };
+  }
 
-  // Pattern 2: "₹X,XXX/quintal" or "₹X,XXX/क्विंटल" with date context
-  const pricePattern = /₹([\d,]+)/g;
-  const prices: number[] = [];
-  while ((match = pricePattern.exec(text)) !== null) {
-    const price = parseInt(match[1].replace(/,/g, ""), 10);
-    if (price > 100 && price < 500000 && !isNaN(price)) {
-      prices.push(price);
+  // Pattern 2: Date-based trend data "DD/MM or DD-Mon: ₹X,XXX"
+  const trendPoints: PricePoint[] = [];
+  const datePattern =
+    /(\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?|\d{1,2}\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|जन|फर|मार्च|अप्रै|मई|जून|जुल|अग|सित|अक्टू|नव|दिस)\w*(?:\s*\d{2,4})?)[:\s]*₹([\d,]+)/gi;
+  while ((match = datePattern.exec(text)) !== null) {
+    const label = match[1].trim();
+    const price = parseInt(match[2].replace(/,/g, ""), 10);
+    if (price > 0 && !isNaN(price)) {
+      trendPoints.push({ label, price });
     }
   }
 
-  // If we have multiple unique prices, show them as a trend
-  const unique = Array.from(new Set(prices));
-  if (unique.length >= 3) {
-    return unique.slice(0, 6).map((p, i) => ({ label: `${i + 1}`, price: p }));
+  if (trendPoints.length >= 3) {
+    return {
+      points: trendPoints,
+      type: "trend",
+      title: "Price Trend",
+    };
   }
 
   return null;

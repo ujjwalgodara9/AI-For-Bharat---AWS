@@ -1,0 +1,13 @@
+{
+  "knowledge_base_id": "KDYUOGVSEP",
+  "data_source_id": "0WQH1CGKWD",
+  "collection_name": "mandimitra-kb",
+  "collection_id": "7df26czi1z3zd6hqu617",
+  "collection_arn": "arn:aws:aoss:us-east-1:471112620976:collection/7df26czi1z3zd6hqu617",
+  "bucket": "mandimitra-knowledge-base-471112620976",
+  "role_arn": "arn:aws:iam::471112620976:role/MandiMitraKBRole",
+  "embedding_model": "amazon.titan-embed-text-v2:0",
+  "vector_index": "mandimitra-index",
+  "supervisor_agent_id": "GDSWGCDJIX",
+  "documents_indexed": 4
+}

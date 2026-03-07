@@ -35,12 +35,14 @@ MandiMitra is an AI-powered agricultural market intelligence platform that helps
 
 | Metric | Value |
 |--------|-------|
-| Commodities tracked | 20 (covers 80%+ farmer queries) |
-| States covered | 14 major agricultural states |
-| DynamoDB records | 8,874+ price entries |
+| Commodities in DB | 222 unique (20 actively tracked) |
+| States covered | 24 states in DB (14 actively tracked) |
+| Districts | 421 unique districts |
+| Mandis | 1,451 unique mandis |
+| DynamoDB records | 16,500+ price entries |
 | Mandi GPS coordinates | 60+ major mandis |
 | Foundation model | Claude Sonnet 4 (Anthropic) |
-| Bedrock Agents | 5 (1 Supervisor + 4 Sub-agents) |
+| Bedrock Agents | 5 (1 Supervisor + 4 Sub-agents) + Knowledge Base |
 | Lambda functions | 3 (Chat, Price Query, Data Ingestion) |
 | Average response time | ~15-21 seconds |
 | Languages supported | Hindi, Hinglish, English |
@@ -66,31 +68,25 @@ MandiMitra is an AI-powered agricultural market intelligence platform that helps
                                             │
                          ┌──────────────────┼──────────────────┐
                          │                  │                  │
-                         ▼                  ▼                  │
-              ┌──────────────────┐  ┌──────────────────┐       │
-              │   Amazon S3      │  │  API Gateway     │       │
-              │   Static Website │  │  (MandiMitraAPI)  │       │
-              │   Next.js 14 PWA │  │  skwsw8qk22      │       │
-              │   mandimitra-    │  └────────┬─────────┘       │
-              │   frontend-      │           │                 │
-              │   471112620976   │     ┌─────┴──────┐          │
-              └────────┬─────────┘     │            │          │
-                       │               ▼            ▼          │
-                       │      ┌────────────┐ ┌────────────┐    │
-                       │      │ mandimitra │ │ mandimitra │    │
-                       │      │ -price-    │ │ -data-     │    │
-                       │      │ query      │ │ ingestion  │    │
-                       │      │ Lambda     │ │ Lambda     │    │
-                       │      └─────┬──────┘ └────────────┘    │
-                       │            │                          │
-                       │  (Chat via Function URL)              │
-                       ▼                                       │
-              ┌────────────────┐                               │
-              │ mandimitra-chat│                               │
-              │ Lambda         │                               │
-              │ (Function URL) │                               │
-              │ 60s timeout    │                               │
-              └─────┬──────────┘                               │
+                  (default)          (api/chat)          (api/*)
+                         │                  │                  │
+                         ▼                  ▼                  ▼
+              ┌──────────────────┐  ┌────────────────┐  ┌──────────────┐
+              │   Amazon S3      │  │ mandimitra-chat│  │ API Gateway  │
+              │   Static Website │  │ Lambda         │  │ (skwsw8qk22) │
+              │   Next.js 14 PWA │  │ (via Function  │  │ /prod        │
+              │   mandimitra-    │  │  URL origin)   │  └──────┬───────┘
+              │   frontend-      │  │ 60s timeout    │         │
+              │   471112620976   │  └─────┬──────────┘   ┌─────┴──────┐
+              └──────────────────┘        │              │            │
+                                          │              ▼            ▼
+                                          │     ┌────────────┐ ┌────────────┐
+                                          │     │ mandimitra │ │ mandimitra │
+                                          │     │ -price-    │ │ -data-     │
+                                          │     │ query      │ │ ingestion  │
+                                          │     │ Lambda     │ │ Lambda     │
+                                          │     └─────┬──────┘ └────────────┘
+                                          │           │
                                     │              │           │
                                     ▼              │           │
                       ┌──────────────────────┐     │           │
@@ -108,6 +104,15 @@ MandiMitra is an AI-powered agricultural market intelligence platform that helps
             │  Mandi     │ │Weather   │ │Geocoding │          │
             │  Prices    │ │API (Free)│ │API (Free)│          │
             └────────────┘ └──────────┘ └──────────┘          │
+                                                               │
+            ┌──────────────────────────────────┐              │
+            │  Bedrock Knowledge Base (RAG)    │              │
+            │  MandiMitraKB (KDYUOGVSEP)       │              │
+            │  ├── OpenSearch Serverless       │              │
+            │  │   (Vector Store, Titan v2)    │              │
+            │  └── S3 Docs: MSP, Crops,        │              │
+            │      Storage, Mandi Guide        │              │
+            └──────────────────────────────────┘              │
                                                                │
                               ┌─────────────────┐             │
                               │ EventBridge      │             │
@@ -129,8 +134,8 @@ MandiMitra is an AI-powered agricultural market intelligence platform that helps
 
 ```
 1. User types "गेहूं का भाव बताओ इंदौर" in the chat UI
-2. Frontend (Next.js) → POST to Lambda Function URL with {message, session_id, language, lat, lon, state, city}
-3. Lambda Function URL → mandimitra-chat Lambda (bypasses API Gateway 29s limit)
+2. Frontend (Next.js) → POST to CloudFront /api/chat with {message, session_id, language, lat, lon, state, city}
+3. CloudFront routes to Lambda Function URL origin (60s timeout, bypasses API Gateway 29s limit)
 4. Chat Lambda:
    a. Detects language style (Hindi/Hinglish/English)
    b. Augments message with location context + language instruction
@@ -146,6 +151,14 @@ MandiMitra is an AI-powered agricultural market intelligence platform that helps
    b. Returns price data with trend, MSP, nearby mandis
 8. Response flows back: Lambda → Agent → Supervisor → Chat Lambda → API Gateway → Frontend
 9. Frontend renders Hindi response with prices, expandable agent trace, TTS button
+
+Alternative flow (policy/knowledge queries):
+1. User asks "Wheat ka MSP kya hai aur pichle saal se kitna badha?"
+2-4. Same as above
+5. Supervisor Agent:
+   a. Searches Knowledge Base (MandiMitraKB) → retrieves MSP document chunks
+   b. Optionally calls get_msp() tool for confirmation
+6. Returns enriched answer with historical MSP data, YoY changes, procurement info
 ```
 
 ---
@@ -169,7 +182,12 @@ MandiMitra uses Amazon Bedrock's **SUPERVISOR_ROUTER** collaboration mode with 5
                     │  │    all prices at mandi)              │
                     │  ├── PriceIntelligenceTools (prices,    │
                     │  │    nearby, sell rec, transport)      │
-                    │  └── WeatherTools (weather advisory)    │
+                    │  ├── WeatherTools (weather advisory)    │
+                    │  │                                      │
+                    │  Knowledge Base (RAG):                  │
+                    │  └── MandiMitraKB (KDYUOGVSEP)          │
+                    │       MSP rates, crop calendars,        │
+                    │       storage guides, mandi procedures  │
                     └──────────┬──────────────────────────────┘
                                │
               ┌────────────────┼────────────────┬───────────────┐
@@ -213,6 +231,57 @@ MandiMitra uses Amazon Bedrock's **SUPERVISOR_ROUTER** collaboration mode with 5
 | WEATHER | "मौसम कैसा रहेगा?" | Weather | get_weather_advisory |
 | BROWSE_DATA | "कौन-कौन सी फसलें हैं?" | Supervisor (direct) | list_available_commodities, list_available_mandis |
 | MANDI_PROFILE | "इंदौर मंडी की जानकारी" | Supervisor (direct) | get_mandi_profile, get_all_prices_at_mandi |
+| MSP_QUERY | "Wheat ka MSP kya hai?" | Knowledge Base (RAG) | Bedrock KB retrieval |
+| CROP_INFO | "Soyabean kab boya jata hai?" | Knowledge Base (RAG) | Bedrock KB retrieval |
+| STORAGE_INFO | "Onion ko kitne din store kar sakte hain?" | Knowledge Base (RAG) | Bedrock KB retrieval |
+| MANDI_PROCESS | "Mandi mein fee kitni lagti hai?" | Knowledge Base (RAG) | Bedrock KB retrieval |
+
+### Knowledge Base (RAG)
+
+The Supervisor Agent has an associated **Bedrock Knowledge Base** (`KDYUOGVSEP`) that provides retrieval-augmented generation over agricultural policy documents.
+
+```
+Knowledge Base: MandiMitraKB (KDYUOGVSEP)
+  │
+  ├── Embedding Model: Amazon Titan Text Embeddings v2 (1024-dim)
+  ├── Vector Store: OpenSearch Serverless (mandimitra-kb)
+  ├── Chunking: FIXED_SIZE (300 tokens, 20% overlap)
+  │
+  ├── Data Source: S3 (mandimitra-knowledge-base-471112620976)
+  │   ├── msp/msp_rates_comprehensive.md
+  │   │   └── Official MSP rates 2024-25 through 2026-27 (Kharif + Rabi)
+  │   │       with YoY changes, cost of production, procurement info
+  │   │       Source: PIB PRID 2131983, 2065310, 2173566
+  │   │
+  │   ├── crop-calendar/crop_calendar_india.md
+  │   │   └── 20+ crops: sowing/harvest months, best sell windows,
+  │   │       Kharif/Rabi classification, major states, varieties
+  │   │
+  │   ├── storage/storage_and_post_harvest.md
+  │   │   └── Crop-wise storage methods, shelf life, temperature/humidity,
+  │   │       warehouse eligibility, weather impact on storage
+  │   │
+  │   └── market/mandi_guide_india.md
+  │       └── APMC mandi process, state-wise fee structures, Agmarknet
+  │           reporting, e-NAM guide, government schemes (PM-KISAN, PMFBY)
+  │
+  └── Queries Enabled:
+      - "What is the current MSP for Wheat and how much did it increase?"
+      - "When should I sow Mustard in Rajasthan?"
+      - "How long can I store Onion? What are the storage tips?"
+      - "What fees are charged at APMC mandi in Maharashtra?"
+      - "How do I register on e-NAM?"
+      - "Which crops got the highest MSP increase this year?"
+```
+
+**How RAG enhances responses:**
+
+| Without KB (tool-only) | With KB (tool + RAG) |
+|------------------------|----------------------|
+| `get_msp("Wheat")` → Rs 2,275 (hardcoded) | KB retrieves: "Wheat MSP Rs 2,585 for 2026-27, up Rs 160 from Rs 2,425 in 2025-26" |
+| No crop calendar info | KB retrieves: "Wheat sown Oct-Nov, harvested Mar-Apr, best sell Apr-May" |
+| No storage guidance | KB retrieves: "Wheat: 6-12 months, moisture <12%, neem leaves for pests" |
+| No mandi fee info | KB retrieves: "MP mandi fee ~3%, Punjab ~6.5%, Bihar abolished APMC" |
 
 ### Agent Collaboration Flow
 
@@ -268,12 +337,16 @@ Supervisor Agent
 | **Lambda** | `mandimitra-data-ingestion` | Daily Agmarknet data fetch | Python 3.12, 512MB, 900s |
 | **DynamoDB** | `MandiMitraPrices` | Price time-series storage | PAY_PER_REQUEST, 2 GSIs |
 | **API Gateway** | `skwsw8qk22` (MandiMitraAPI) | REST API | REGIONAL, TLS 1.0 |
-| **CloudFront** | `E1FOPZ17Q7P6CF` | CDN + HTTPS | d2mtfau3fvs243.cloudfront.net |
+| **CloudFront** | `E1FOPZ17Q7P6CF` | CDN + HTTPS + API routing | 3 origins: S3, Lambda FnURL, API GW |
 | **S3** | `mandimitra-frontend-471112620976` | Frontend static hosting | Website-enabled |
 | **S3** | `mandimitra-data` | Audit logs from ingestion | Private |
 | **EventBridge** | `mandimitra-daily-ingestion` | Daily price ingestion trigger | cron(0 16 * * ? *) = 9:30PM IST |
+| **Bedrock Knowledge Base** | `KDYUOGVSEP` (MandiMitraKB) | RAG over agricultural policy docs | Titan Embed v2, 300-token chunks |
+| **OpenSearch Serverless** | `mandimitra-kb` (7df26czi1z3zd6hqu617) | Vector store for Knowledge Base | VECTORSEARCH, FAISS HNSW 1024-dim |
+| **S3** | `mandimitra-knowledge-base-471112620976` | KB source documents | 4 markdown docs (MSP, crops, storage, mandis) |
 | **CloudWatch** | 7 alarms | Lambda errors, throttles, DynamoDB | All OK |
 | **IAM** | `MandiMitraBedrockAgentRole` | Bedrock agent execution role | AmazonBedrockFullAccess |
+| **IAM** | `MandiMitraKBRole` | Knowledge Base execution role | S3 read + Bedrock invoke + AOSS |
 
 ### External APIs (No AWS Cost)
 
@@ -306,8 +379,8 @@ Next.js Config (next.config.mjs):
   images.unoptimized: true  → No Image Optimization API needed
 
 Env vars (baked at build time):
-  NEXT_PUBLIC_API_URL=https://...execute-api.../prod/api   (prices, crop list)
-  NEXT_PUBLIC_CHAT_URL=https://...lambda-url.../            (chat — bypasses API GW)
+  NEXT_PUBLIC_API_URL=https://d2mtfau3fvs243.cloudfront.net/api   (prices, crop list — via CloudFront → API GW)
+  NEXT_PUBLIC_CHAT_URL=https://d2mtfau3fvs243.cloudfront.net/api/chat  (chat — via CloudFront → Lambda Function URL)
 
 Build:  npm run build
 Deploy: aws s3 sync out/ s3://mandimitra-frontend-471112620976 --delete
@@ -347,6 +420,7 @@ layout.tsx (Root — metadata, PWA manifest, service worker)
         │   ├── TTS button (read aloud)
         │   ├── Copy to clipboard
         │   ├── WhatsApp share button
+        │   ├── Downloadable Price Brief (auto-detected, print-to-PDF)
         │   ├── PriceChart.tsx (SVG mini chart if price data detected)
         │   └── Expandable Agent Trace panel
         │       ├── preprocessing steps
@@ -361,11 +435,13 @@ layout.tsx (Root — metadata, PWA manifest, service worker)
         │   └── Send button
         │
         ├── LocationPicker.tsx (modal)
-        │   ├── State dropdown (14 states)
-        │   ├── City dropdown (filtered by state)
-        │   ├── GPS auto-detect button
+        │   ├── Dynamic state list (from /api/prices/_locations, cached)
+        │   ├── Dynamic district/mandi list (per state, cached)
+        │   ├── Search filter for states + districts
+        │   ├── GPS auto-detect with retry
         │   │   └── Nominatim reverse geocode (lat/lon → state/city)
-        │   └── Manual coordinate input
+        │   │   └── Union territory handling (Delhi, Chandigarh)
+        │   └── sessionStorage caching for API responses
         │
         └── TypingIndicator.tsx (animated dots during loading)
 ```
@@ -611,12 +687,14 @@ backend/lambdas/shared/
 | Dimension | Count | Examples |
 |-----------|-------|---------|
 | Commodities (tracked) | 20 | Wheat, Soyabean, Onion, Tomato, Potato, Cotton, Rice |
-| Commodities (in DB) | 205 | Agmarknet returns all commodities at queried mandis |
+| Commodities (in DB) | 222 | Agmarknet returns all commodities at queried mandis |
 | States (tracked) | 14 | MP, Rajasthan, Maharashtra, UP, Gujarat, Karnataka, Punjab, Haryana |
 | States (in DB) | 24 | From historical fetch scripts |
+| Districts (in DB) | 421 | Dynamically served via /api/prices/_locations |
+| Mandis (in DB) | 1,451 | Dynamically served per state selection |
 | Mandis (GPS mapped) | 60+ | Indore, Dewas, Ujjain, Shajapur, Karnal, Delhi, Ahmedabad |
 | Date range | 2006-2026 | Historical + daily updates |
-| Total records | 8,874+ | Growing daily |
+| Total records | 16,500+ | Growing daily |
 
 ---
 
@@ -721,29 +799,28 @@ Direct price lookup (bypasses AI agent).
 
 ```
 GET /api/prices/Wheat?state=MADHYA_PRADESH&mandi=INDORE&days=7
-GET /api/prices/_list?state=MADHYA_PRADESH  → Available commodities with Hindi translations
+GET /api/prices/_list?state=MADHYA_PRADESH       → Available commodities with Hindi translations
+GET /api/prices/_locations                        → All states (for location picker)
+GET /api/prices/_locations?state=Madhya+Pradesh   → Districts + mandis for a state
 ```
 
-### CORS Configuration
+### CloudFront Routing & CORS
 
-Chat endpoint CORS is handled at the **Lambda Function URL** level (not in Lambda code):
-
-```
-Access-Control-Allow-Origin: * (Function URL config)
-Access-Control-Allow-Methods: POST
-Access-Control-Allow-Headers: content-type, authorization
-Access-Control-Max-Age: 86400 (24h preflight cache)
-```
-
-API Gateway endpoints (prices, crop list) use standard API Gateway CORS:
+All API traffic routes through CloudFront (`d2mtfau3fvs243.cloudfront.net`) for universal accessibility:
 
 ```
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization
+CloudFront Behaviors (in priority order):
+  1. api/chat    → Lambda Function URL origin (60s timeout, POST)
+  2. api/*       → API Gateway origin (/prod, 30s timeout, GET/POST)
+  3. (default)   → S3 static website origin
+
+Why CloudFront for API routing:
+  - Indian ISPs (Jio, etc.) block *.lambda-url.us-east-1.on.aws domains
+  - CloudFront domain is universally accessible
+  - Lambda Function URL origin allows 60s timeout (bypasses API GW 29s limit)
 ```
 
-> **Note:** Lambda handler must NOT return its own CORS headers when using Function URL CORS — duplicate `Access-Control-Allow-Origin` headers cause intermittent browser rejections.
+CORS: Lambda Function URL has CORS configured (`AllowOrigins: *`, `AllowMethods: POST`). API Gateway uses standard CORS headers.
 
 ---
 
@@ -1060,7 +1137,7 @@ MandiMitra/
 │   │       └── voice.ts              # Web Speech API (STT + TTS)
 │   ├── public/
 │   │   ├── manifest.json             # PWA manifest
-│   │   ├── sw.js                     # Service worker (v2: bypasses API/cross-origin requests)
+│   │   ├── sw.js                     # Service worker (v3: bypasses API/cross-origin requests)
 │   │   └── icon-*.png                # App icons
 │   ├── next.config.mjs               # Static export config
 │   ├── tailwind.config.ts            # Custom color palette
@@ -1092,6 +1169,15 @@ MandiMitra/
 │   │   ├── price_intel_openapi.json   # OpenAPI spec for Action Groups
 │   │   └── sub_agents/
 │   │       └── weather_agent_prompt.txt # Weather prompt
+│   │
+│   ├── knowledge_base/                   # Bedrock Knowledge Base (RAG)
+│   │   ├── msp_rates_comprehensive.md   # MSP rates 2024-27 (official PIB data)
+│   │   ├── crop_calendar_india.md       # Sowing/harvest calendar, 20+ crops
+│   │   ├── storage_and_post_harvest.md  # Storage methods, shelf life, warehouse
+│   │   ├── mandi_guide_india.md         # APMC guide, fees, e-NAM, schemes
+│   │   ├── upload_to_s3.py             # Upload docs to S3
+│   │   ├── setup_knowledge_base.py     # Full KB setup (AOSS + KB + ingest)
+│   │   └── kb_ids.json                 # KB, data source, collection IDs
 │   │
 │   └── scripts/
 │       ├── create_multi_agent.py      # Multi-agent setup
@@ -1151,6 +1237,9 @@ MandiMitra/
 | CloudFront | E1FOPZ17Q7P6CF | Global |
 | S3 (Frontend) | mandimitra-frontend-471112620976 | us-east-1 |
 | S3 (Data) | mandimitra-data | us-east-1 |
+| S3 (Knowledge Base) | mandimitra-knowledge-base-471112620976 | us-east-1 |
+| Bedrock Knowledge Base | KDYUOGVSEP (MandiMitraKB) | us-east-1 |
+| OpenSearch Serverless | mandimitra-kb (7df26czi1z3zd6hqu617) | us-east-1 |
 | DynamoDB | MandiMitraPrices | us-east-1 |
 | EventBridge | mandimitra-daily-ingestion | us-east-1 |
 | Guardrail | snlfs5xjb61l | us-east-1 |
@@ -1167,9 +1256,9 @@ LANGFUSE_PUBLIC_KEY=<from langfuse.com>
 LANGFUSE_SECRET_KEY=<from langfuse.com>
 LANGFUSE_HOST=https://cloud.langfuse.com
 
-# Frontend (.env.local)
-NEXT_PUBLIC_API_URL=https://skwsw8qk22.execute-api.us-east-1.amazonaws.com/prod/api
-NEXT_PUBLIC_CHAT_URL=https://qkatltxwdichmmb7t5oqj23jg40xhuae.lambda-url.us-east-1.on.aws/
+# Frontend (.env.local) — all traffic via CloudFront for ISP compatibility
+NEXT_PUBLIC_API_URL=https://d2mtfau3fvs243.cloudfront.net/api
+NEXT_PUBLIC_CHAT_URL=https://d2mtfau3fvs243.cloudfront.net/api/chat
 ```
 
 ---

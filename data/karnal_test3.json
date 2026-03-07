@@ -1,1 +1,0 @@
-{"messageVersion": "1.0", "response": {"actionGroup": "MandiTools", "function": "get_all_prices_at_mandi", "functionResponse": {"responseBody": {"TEXT": {"body": "{\"mandi\": \"KARNAL\", \"commodities_count\": 0, \"prices\": [], \"total_records\": 0}"}}}}}

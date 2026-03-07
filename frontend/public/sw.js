@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandimitra-v2";
+const CACHE_NAME = "mandimitra-v3";
 const OFFLINE_URL = "/";
 
 const PRECACHE_URLS = ["/", "/index.html"];

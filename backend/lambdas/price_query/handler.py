@@ -56,6 +56,30 @@ def handle_api_request(event):
         commodities = list_commodities_with_translations(state if state else None)
         return api_response(200, {"commodities": commodities, "count": len(commodities), "state": state or "all"})
 
+    # Special case: list states and districts/mandis for location picker
+    if commodity == "_locations":
+        state = query_params.get("state", "")
+        if state:
+            # Return districts/mandis for a specific state
+            mandis = list_available_mandis(state)
+            # Group by district
+            districts = {}
+            for m in mandis:
+                dist = m.get("district", "Unknown")
+                if dist not in districts:
+                    districts[dist] = []
+                districts[dist].append(m.get("mandi", ""))
+            return api_response(200, {
+                "state": state,
+                "districts": [{"district": d, "mandis": sorted(ms)} for d, ms in sorted(districts.items())],
+                "district_count": len(districts),
+                "mandi_count": len(mandis),
+            })
+        else:
+            # Return all states
+            states = list_available_states()
+            return api_response(200, {"states": sorted(states), "count": len(states)})
+
     state = query_params.get("state", "Madhya Pradesh")
     mandi = query_params.get("mandi", None)
     days = int(query_params.get("days", "7"))
