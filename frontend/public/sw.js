@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandimitra-v1";
+const CACHE_NAME = "mandimitra-v2";
 const OFFLINE_URL = "/";
 
 const PRECACHE_URLS = ["/", "/index.html"];
@@ -24,6 +24,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // Never cache or intercept API calls — let them go straight to the network
+  if (event.request.method !== "GET" || !event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(OFFLINE_URL))
@@ -34,11 +39,14 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return cached || fetch(event.request).then((response) => {
-        if (response.ok && event.request.url.startsWith(self.location.origin)) {
+        if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
+      }).catch(() => {
+        // Network failed and no cache — let the browser handle it
+        return Response.error();
       });
     })
   );
