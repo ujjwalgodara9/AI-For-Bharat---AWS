@@ -14,6 +14,14 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+
+def _safe_log_preview(text: str, max_len: int = 80) -> str:
+    """ASCII-safe preview for logging (avoids charmap/Unicode errors in some environments)."""
+    if not text:
+        return ""
+    preview = (text[:max_len] + "..." if len(text) > max_len else text)
+    return preview.encode("ascii", errors="replace").decode("ascii")
+
 # AWS clients
 bedrock_agent_runtime = boto3.client(
     "bedrock-agent-runtime",
@@ -78,6 +86,24 @@ def detect_language_style(message: str) -> str:
 
 def handler(event, context):
     """Main Lambda handler for chat endpoint."""
+    # CORS preflight: Lambda Function URL sends method in requestContext.http.method
+    request_context = event.get("requestContext") or {}
+    http_info = request_context.get("http", request_context.get("httpMethod"))
+    method = http_info.get("method") if isinstance(http_info, dict) else http_info
+    if not method:
+        method = event.get("httpMethod", "POST")
+    if method == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type,Authorization",
+                "Access-Control-Allow-Methods": "POST,OPTIONS",
+            },
+            "body": "",
+        }
+
     start_time = time.time()
 
     # Parse request
@@ -272,7 +298,7 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None,
 
     logger.info(f"Response parts count: {len(response_parts)}, sizes: {[len(p) for p in response_parts]}")
     full_response = "".join(response_parts)
-    logger.info(f"Full response length: {len(full_response)}, preview: {repr(full_response[:80])}")
+    logger.info(f"Full response length: {len(full_response)}, preview: {_safe_log_preview(full_response)}")
 
     # Strip "Bot:" or "Bot: " prefix injected by Bedrock multi-agent framework
     if full_response.startswith("Bot:"):
@@ -286,12 +312,12 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None,
         full_response.startswith(p) for p in INTERNAL_PREFIXES
     )
     if is_internal_reasoning:
-        logger.warning(f"Response looks like internal reasoning ({repr(full_response[:60])}), will try trace fallback")
+        logger.warning(f"Response looks like internal reasoning ({_safe_log_preview(full_response, 60)}), will try trace fallback")
         full_response = ""
 
     # Also treat suspiciously short responses (< 10 chars) as empty so trace fallback can help
     if full_response and len(full_response) < 10:
-        logger.warning(f"Response too short ({repr(full_response)}), will try trace fallback")
+        logger.warning(f"Response too short ({_safe_log_preview(full_response, 60)}), will try trace fallback")
         full_response = ""
 
     # Fallback 1: if chunk bytes were empty OR contained leaked reasoning,
@@ -300,28 +326,11 @@ def invoke_agent(message: str, session_id: str, language: str, trace=None,
         full_response = answer_from_trace[-1]  # Use the last (final) answer
         logger.info(f"Using answer from trace fallback: {len(full_response)} chars")
 
-    # Fallback 2: retry WITHOUT traces (sometimes enableTrace causes empty chunks)
+    # If still empty after trace fallback, return a user-friendly message
+    # (a second Bedrock invoke would consume the remaining timeout budget and likely fail)
     if not full_response:
-        logger.info("Response empty after trace fallback, retrying without traces...")
-        try:
-            retry_response = bedrock_agent_runtime.invoke_agent(
-                agentId=AGENT_ID,
-                agentAliasId=AGENT_ALIAS_ID,
-                sessionId=session_id + "-retry",
-                inputText=augmented_message,
-                enableTrace=False,
-            )
-            retry_parts = []
-            for event in retry_response.get("completion", []):
-                if "chunk" in event and "bytes" in event["chunk"]:
-                    raw_bytes = event["chunk"]["bytes"]
-                    if raw_bytes:
-                        retry_parts.append(raw_bytes.decode("utf-8") if isinstance(raw_bytes, bytes) else str(raw_bytes))
-            if retry_parts:
-                full_response = "".join(retry_parts)
-                logger.info(f"Retry without traces succeeded: {len(full_response)} chars")
-        except Exception as retry_err:
-            logger.error(f"Retry failed: {retry_err}")
+        logger.warning("Response empty after all fallbacks")
+        full_response = "कृपया दोबारा पूछें। एजेंट से जवाब नहीं मिला।" if style == "hi" else "Please try again. The agent did not return a response."
 
     full_response = clean_agent_response(full_response)
     return full_response, agent_traces

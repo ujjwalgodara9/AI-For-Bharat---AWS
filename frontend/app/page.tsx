@@ -11,6 +11,7 @@ import LocationPicker from "./components/LocationPicker";
 import type { ChatMessage, ChatResponse } from "./lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const CHAT_URL = process.env.NEXT_PUBLIC_CHAT_URL || `${API_BASE}/chat`;
 
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -102,7 +103,7 @@ export default function Home() {
         }
         if (locationState) payload.state = locationState;
         if (locationCity) payload.city = locationCity;
-        const res = await fetch(`${API_BASE}/chat`, {
+        const res = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

@@ -36,5 +36,34 @@ Thumbs.db
 dist/
 build/
 
+# Lambda pip install artifacts (from `pip install -r requirements.txt -t .`)
+backend/lambdas/*/*.dist-info/
+backend/lambdas/*/*.pyd
+backend/lambdas/*/bin/
+backend/lambdas/*/boto3/
+backend/lambdas/*/botocore/
+backend/lambdas/*/s3transfer/
+backend/lambdas/*/dateutil/
+backend/lambdas/*/jmespath/
+backend/lambdas/*/urllib3/
+backend/lambdas/*/certifi/
+backend/lambdas/*/charset_normalizer/
+backend/lambdas/*/requests/
+backend/lambdas/*/idna/
+backend/lambdas/*/anyio/
+backend/lambdas/*/httpx/
+backend/lambdas/*/httpcore/
+backend/lambdas/*/h11/
+backend/lambdas/*/pydantic/
+backend/lambdas/*/pydantic_core/
+backend/lambdas/*/annotated_types/
+backend/lambdas/*/typing_inspection/
+backend/lambdas/*/langfuse/
+backend/lambdas/*/backoff/
+backend/lambdas/*/packaging/
+backend/lambdas/*/wrapt/
+backend/lambdas/*/six.py
+backend/lambdas/*/typing_extensions.py
+
 .claude/
 Log_error.txt
