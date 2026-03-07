@@ -93,14 +93,10 @@ def handler(event, context):
     if not method:
         method = event.get("httpMethod", "POST")
     if method == "OPTIONS":
+        # Function URL CORS config handles preflight; this is a safety fallback
         return {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type,Authorization",
-                "Access-Control-Allow-Methods": "POST,OPTIONS",
-            },
+            "headers": {"Content-Type": "application/json"},
             "body": "",
         }
 
@@ -173,9 +169,6 @@ def handler(event, context):
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json; charset=utf-8",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type,Authorization",
-                "Access-Control-Allow-Methods": "POST,OPTIONS",
             },
             "body": body_str,
         }
@@ -430,14 +423,11 @@ def extract_trace(trace_data: dict) -> dict:
 
 
 def api_response(status_code: int, body: dict) -> dict:
-    """Format Lambda response for API Gateway."""
+    """Format Lambda response for Function URL (CORS handled by Function URL config)."""
     return {
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "POST,OPTIONS",
         },
         "body": json.dumps(body, ensure_ascii=True),
     }
