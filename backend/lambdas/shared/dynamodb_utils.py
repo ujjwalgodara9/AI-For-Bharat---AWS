@@ -11,7 +11,7 @@ from .constants import (
     PRICE_TABLE_NAME, MANDI_COORDINATES, TRANSPORT_COST_PER_QTL_PER_KM,
     MSP_RATES, PERISHABILITY_INDEX, STORAGE_COST_PER_DAY,
     STORAGE_TIPS, CROP_SEASONS, WEATHER_STORAGE_IMPACT,
-    COMMODITY_TRANSLATIONS
+    COMMODITY_TRANSLATIONS, normalize_commodity, normalize_state
 )
 from .geocoding import get_coordinates
 
@@ -23,6 +23,10 @@ def query_prices(commodity: str, state: str, mandi: str = None, days: int = 7) -
     """Query mandi prices for a commodity in a state, optionally filtered by mandi.
     If no recent data found, automatically falls back to searching all historical data.
     """
+    # Normalize Hindi/transliterated names to English
+    commodity = normalize_commodity(commodity)
+    state = normalize_state(state)
+
     end_date = datetime.utcnow().strftime("%Y-%m-%d")
     if days <= 0:
         start_date = "2000-01-01"  # Fetch all historical data
@@ -234,7 +238,9 @@ def get_price_trend(commodity: str, state: str, mandi: str, days: int = 30) -> d
 
 
 def get_msp(commodity: str) -> dict:
-    """Get MSP for a commodity (case-insensitive)."""
+    """Get MSP for a commodity (case-insensitive, supports Hindi names)."""
+    # Normalize Hindi/transliterated names to English
+    commodity = normalize_commodity(commodity)
     # Try exact match first, then case-insensitive
     msp = MSP_RATES.get(commodity)
     if msp is None:
@@ -358,6 +364,9 @@ def get_sell_recommendation_data(commodity: str, state: str, lat: float, lon: fl
                                   quantity: float, storage_available: bool,
                                   weather_data: dict = None) -> dict:
     """Comprehensive sell recommendation with price prediction, weather, season, and storage advice."""
+    # Normalize Hindi/transliterated names to English
+    commodity = normalize_commodity(commodity)
+    state = normalize_state(state)
     # 1. Get nearby mandis with prices
     nearby = get_nearby_mandis(lat, lon, radius_km=150, commodity=commodity)
 

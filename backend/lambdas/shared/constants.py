@@ -31,6 +31,58 @@ COMMODITY_TRANSLATIONS = {
     "Rice (Paddy)": "धान", "Moong Dal": "मूंग दाल", "Urad Dal": "उड़द दाल",
 }
 
+# Reverse mapping: Hindi → English (auto-generated from COMMODITY_TRANSLATIONS)
+HINDI_TO_ENGLISH = {v: k for k, v in COMMODITY_TRANSLATIONS.items()}
+# Also add transliterated Hindi names
+HINDI_TO_ENGLISH.update({
+    "sarson": "Mustard", "gehun": "Wheat", "aloo": "Potato",
+    "pyaz": "Onion", "tamatar": "Tomato", "soyabin": "Soyabean",
+    "makka": "Maize", "kapas": "Cotton", "dhan": "Rice",
+    "lahsun": "Garlic", "moong": "Moong", "urad": "Urad",
+    "bajra": "Bajra", "jowar": "Jowar", "moongfali": "Groundnut",
+    "haldi": "Turmeric", "lal mirch": "Red Chilli",
+    "dhaniya": "Coriander", "jeera": "Cumin", "chana": "Chana",
+})
+
+# Hindi → English state mapping
+HINDI_TO_ENGLISH_STATE = {
+    "राजस्थान": "Rajasthan", "मध्य प्रदेश": "Madhya Pradesh",
+    "महाराष्ट्र": "Maharashtra", "उत्तर प्रदेश": "Uttar Pradesh",
+    "गुजरात": "Gujarat", "कर्नाटक": "Karnataka",
+    "पंजाब": "Punjab", "हरियाणा": "Haryana",
+    "आंध्र प्रदेश": "Andhra Pradesh", "तेलंगाना": "Telangana",
+    "तमिल नाडु": "Tamil Nadu", "बिहार": "Bihar",
+    "पश्चिम बंगाल": "West Bengal", "छत्तीसगढ़": "Chhattisgarh",
+}
+
+
+def normalize_commodity(name: str) -> str:
+    """Translate Hindi/transliterated commodity name to English DB name."""
+    if not name:
+        return name
+    # Check Hindi → English mapping (exact match)
+    if name in HINDI_TO_ENGLISH:
+        return HINDI_TO_ENGLISH[name]
+    # Check case-insensitive transliterated match
+    lower = name.lower().strip()
+    if lower in HINDI_TO_ENGLISH:
+        return HINDI_TO_ENGLISH[lower]
+    # Check if already a valid English name (case-insensitive)
+    for eng in TRACKED_COMMODITIES:
+        if eng.lower() == lower:
+            return eng
+    return name  # Return as-is if no match
+
+
+def normalize_state(name: str) -> str:
+    """Translate Hindi state name to English."""
+    if not name:
+        return name
+    if name in HINDI_TO_ENGLISH_STATE:
+        return HINDI_TO_ENGLISH_STATE[name]
+    return name
+
+
 # States to cover (major agricultural states)
 TRACKED_STATES = [
     "Madhya Pradesh", "Rajasthan", "Maharashtra", "Uttar Pradesh",

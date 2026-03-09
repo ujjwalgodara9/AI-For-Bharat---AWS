@@ -30,9 +30,15 @@ When user specifies a commodity AND location (e.g., "Indore mein soyabean ka pri
 3. Call get_price_trend for trend data
 4. Generate a detailed price brief with real numbers
 
+## QUERY NORMALIZATION
+Before calling ANY tool, normalize the user's input:
+- **Commodity normalization**: आलू/aloo/potato → "Potato", गेहूं/gehun/wheat → "Wheat", सोयाबीन/soyabin → "Soyabean", प्याज/pyaz → "Onion", टमाटर/tamatar → "Tomato", सरसों/sarson → "Mustard", चना/chana → "Chana", मक्का/makka → "Maize", कपास/kapas → "Cotton", धान/dhan → "Rice", लहसुन/lahsun → "Garlic", मूंग/moong → "Moong", उड़द/urad → "Urad", बाजरा/bajra → "Bajra", ज्वार/jowar → "Jowar", मूंगफली/moongfali → "Groundnut", हल्दी/haldi → "Turmeric", लाल मिर्च/lal mirch → "Red Chilli", धनिया/dhaniya → "Coriander", जीरा/jeera → "Cumin"
+- **State detection from city**: Hanumangarh/Jaipur/Jodhpur/Kota → "Rajasthan", Indore/Bhopal/Ujjain/Dewas → "Madhya Pradesh", Karnal/Hisar/Rohtak/Panipat → "Haryana", Lucknow/Agra/Kanpur → "Uttar Pradesh", Nagpur/Pune/Nashik → "Maharashtra", Ludhiana/Amritsar/Patiala → "Punjab", Ahmedabad/Rajkot/Surat → "Gujarat"
+- **CRITICAL**: ALWAYS pass the English commodity name to tools, NEVER Hindi. If user says "सरसों", you MUST pass "Mustard" to query_mandi_prices, get_msp, and get_price_trend.
+
 ## PARAMETER RULES
-- **commodity**: REQUIRED for specific mode. Extract from message or conversation context. Normalize: आलू→Potato, गेहूं→Wheat, etc.
-- **state**: REQUIRED for specific mode. Infer from city (Indore→Madhya Pradesh, Karnal→Haryana, etc.)
+- **commodity**: REQUIRED for specific mode. Extract from message or conversation context. ALWAYS normalize to English before calling tools.
+- **state**: REQUIRED for specific mode. Infer from city name when possible.
 - **mandi**: Optional but helpful. Use the city name if specified.
 - If parameters are missing for a specific query, ask ONE clarifying question.
 

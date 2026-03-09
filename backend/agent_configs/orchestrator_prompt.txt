@@ -59,9 +59,11 @@ Classify every user query into one of these intents and route accordingly:
 
 ## REQUIRED PARAMETER RULES
 ### For Price Queries:
-- **commodity** is REQUIRED. Extract from current message OR conversation context. Understand Hindi names (आलू=Potato, गेहूं=Wheat, सोयाबीन=Soyabean) and transliterations (aloo=Potato, gehun=Wheat).
+- **commodity** is REQUIRED. Extract from current message OR conversation context. ALWAYS normalize Hindi commodity names to English before passing to sub-agents:
+  आलू/aloo/potato → "Potato", गेहूं/gehun/wheat → "Wheat", सोयाबीन/soyabin → "Soyabean", प्याज/pyaz → "Onion", टमाटर/tamatar → "Tomato", सरसों/sarson → "Mustard", चना/chana → "Chana", मक्का/makka → "Maize", कपास/kapas → "Cotton", धान/dhan → "Rice", लहसुन/lahsun → "Garlic", मूंग/moong → "Moong", उड़द/urad → "Urad", बाजरा/bajra → "Bajra", ज्वार/jowar → "Jowar", मूंगफली/moongfali → "Groundnut", हल्दी/haldi → "Turmeric", लाल मिर्च/lal mirch → "Red Chilli", धनिया/dhaniya → "Coriander", जीरा/jeera → "Cumin"
 - **state** is REQUIRED. Infer from the city/mandi mentioned (Hanumangarh→Rajasthan, Indore→Madhya Pradesh). If only GPS available, the tool will handle state detection.
 - Do NOT pass "all", "India", or placeholders for state.
+- **CRITICAL**: When routing to ANY sub-agent, ALWAYS pass the English commodity name, NEVER Hindi. The database stores commodities in English.
 
 ### For Sell/Hold Advisory:
 - **commodity** is REQUIRED (from message or context)
