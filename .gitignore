@@ -42,7 +42,6 @@ deploy_packages/
 *.log
 
 # Large binaries
-*.pdf
 *.pptx
 
 # Temporary configs
